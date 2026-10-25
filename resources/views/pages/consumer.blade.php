@@ -1,5 +1,5 @@
 <x-layouts::app :title="__('My water account')">
-    <main class="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 text-[#062E68] dark:text-white">
+    <main class="flex w-full min-w-0 flex-col gap-8 py-8 text-[#062E68] dark:text-white">
         <header><flux:heading size="xl">My water account</flux:heading><flux:text>{{ $consumer->provider->name }} · Account {{ $consumer->account_number }}</flux:text></header>
         @include('partials.aquaflow-alerts')
 
@@ -69,9 +69,9 @@
 
         <flux:card class="space-y-4"><flux:heading>Notifications</flux:heading>
             <form method="POST" action="{{ route('consumer.notifications.preferences') }}" class="flex flex-wrap items-center gap-4 rounded-lg border border-[#BDECF8] p-3 text-sm dark:border-zinc-700">@csrf @method('PUT')
-                <label class="flex items-center gap-2"><input type="checkbox" name="billing" value="1" @checked($consumer->notification_preferences['billing'] ?? true)> Billing</label>
-                <label class="flex items-center gap-2"><input type="checkbox" name="payment" value="1" @checked($consumer->notification_preferences['payment'] ?? true)> Payments</label>
-                <label class="flex items-center gap-2"><input type="checkbox" name="support" value="1" @checked($consumer->notification_preferences['support'] ?? true)> Support</label>
+                <label class="flex items-center gap-2"><input type="checkbox" name="billing" value="1" @checked($consumer->notificationEnabled('billing'))> Billing</label>
+                <label class="flex items-center gap-2"><input type="checkbox" name="payment" value="1" @checked($consumer->notificationEnabled('payment'))> Payments</label>
+                <label class="flex items-center gap-2"><input type="checkbox" name="support" value="1" @checked($consumer->notificationEnabled('support'))> Support</label>
                 <flux:button type="submit" size="sm">Save preferences</flux:button>
                 <span>Service notices are always shown.</span>
             </form>

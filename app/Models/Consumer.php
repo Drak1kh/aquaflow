@@ -23,14 +23,20 @@ class Consumer extends Model
 
     public function notifyAccount(string $category, string $title, string $message): void
     {
-        $preferences = $this->getAttribute('notification_preferences');
-        if (! is_array($preferences)) {
-            $preferences = [];
-        }
-
-        if ($this->user && ($category === 'service' || ($preferences[$category] ?? true))) {
+        if ($this->user && $this->notificationEnabled($category)) {
             $this->user->notify(new AccountNotice($title, $message));
         }
+    }
+
+    public function notificationEnabled(string $category): bool
+    {
+        if ($category === 'service') {
+            return true;
+        }
+
+        $preferences = $this->notification_preferences ?? [];
+
+        return (bool) ($preferences[$category] ?? (SystemSetting::setting('notification_'.$category.'_default', '1') === '1'));
     }
 
     /** @return BelongsTo<WaterProvider, $this> */

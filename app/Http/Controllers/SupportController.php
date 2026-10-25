@@ -9,6 +9,8 @@ use App\Models\SupportTicket;
 use App\Models\SystemSetting;
 use App\Models\TicketAttachment;
 use App\Models\TicketMessage;
+use App\Models\User;
+use App\Models\WaterProvider;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,12 +45,52 @@ class SupportController extends Controller
 
     public function adminIndex(Request $request): View
     {
-        abort_unless($request->user()->is_super_admin, 403);
+        abort_unless($request->user()->is_super_admin && $request->user()->status === 'active', 403);
+        $filters = $request->validate([
+            'type' => ['nullable', Rule::in(['billing', 'payment', 'account', 'service', 'provider', 'other'])],
+            'status' => ['nullable', Rule::in(['open', 'escalated', 'under_review', 'referred_to_provider', 'waiting_for_consumer', 'resolved', 'closed'])],
+            'water_provider_id' => ['nullable', 'integer', Rule::exists('water_providers', 'id')],
+        ]);
 
         return view('pages.support', [
             'mode' => 'admin',
-            'tickets' => SupportTicket::whereNotNull('escalated_at')->with(['consumer', 'messages.author', 'attachments'])->latest()->get(),
+            'filters' => $filters,
+            'providers' => WaterProvider::orderBy('name')->get(),
+            'assignees' => User::where('is_super_admin', true)->where('status', 'active')->orderBy('name')->get(),
+            'tickets' => SupportTicket::whereNotNull('escalated_at')
+                ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
+                ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->with(['consumer', 'assignee', 'messages.author', 'attachments'])
+                ->latest()->paginate(20)->withQueryString(),
         ]);
+    }
+
+    public function assign(Request $request, SupportTicket $ticket, AuditRecorder $audit): RedirectResponse
+    {
+        abort_unless($request->user()->is_super_admin && $request->user()->status === 'active' && $ticket->escalated_at !== null, 404);
+        $data = $request->validate([
+            'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')->where('is_super_admin', true)->where('status', 'active')],
+        ]);
+        $before = ['assigned_to' => $ticket->assigned_to];
+        $ticket->update(['assigned_to' => $data['assigned_to'] ?? null]);
+        $audit->record($ticket, 'ticket.assigned', $before, ['assigned_to' => $ticket->assigned_to]);
+
+        return back()->with('status', 'Ticket assignment saved.');
+    }
+
+    public function updateStatus(Request $request, SupportTicket $ticket, AuditRecorder $audit): RedirectResponse
+    {
+        abort_unless($request->user()->is_super_admin && $request->user()->status === 'active' && $ticket->escalated_at !== null, 404);
+        abort_if(in_array($ticket->status, ['resolved', 'closed'], true), 422);
+        $data = $request->validate([
+            'status' => ['required', Rule::in(['under_review', 'referred_to_provider', 'waiting_for_consumer'])],
+        ]);
+        $before = ['status' => $ticket->status];
+        $ticket->update($data);
+        $audit->record($ticket, 'ticket.status.updated', $before, ['status' => $ticket->status]);
+
+        return back()->with('status', 'Ticket status updated.');
     }
 
     public function store(Request $request, AuditRecorder $audit): RedirectResponse

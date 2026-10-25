@@ -1,5 +1,5 @@
 <x-layouts::app :title="__('Payments')">
-    <main class="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 text-[#062E68] dark:text-white">
+    <main class="flex w-full min-w-0 flex-col gap-8 py-8 text-[#062E68] dark:text-white">
         <header><flux:heading size="xl">Payments · {{ $provider->name }}</flux:heading><flux:text>Record, verify, and review collections</flux:text></header>
         @include('partials.aquaflow-alerts')
 

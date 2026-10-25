@@ -65,7 +65,7 @@ new #[Title('Providers')] class extends Component {
     }
 }; ?>
 
-    <main class="w-full min-w-0 space-y-7 px-4 py-8 text-[#062E68] sm:px-6 lg:px-8 dark:text-white">
+    <main class="w-full min-w-0 space-y-7 py-8 text-[#062E68] dark:text-white">
         <header class="flex flex-col gap-5 border-b border-[#BDECF8] pb-7 sm:flex-row sm:items-end sm:justify-between dark:border-slate-700">
             <div class="space-y-2">
                 <flux:heading size="xl">Providers</flux:heading>

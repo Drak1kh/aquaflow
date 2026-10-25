@@ -7,6 +7,8 @@ use App\CsvCell;
 use App\DecimalAmount;
 use App\Models\AuditLog;
 use App\Models\Bill;
+use App\Models\BillAdjustment;
+use App\Models\BillingPeriod;
 use App\Models\Consumer;
 use App\Models\Payment;
 use App\Models\ProviderMembership;
@@ -15,6 +17,7 @@ use App\Models\SupportTicket;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\WaterProvider;
+use App\PlatformMetrics;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +34,7 @@ class AdminController extends Controller
         abort_unless($request->user()->is_super_admin && $request->user()->status === 'active', 403);
     }
 
-    public function index(Request $request): View
+    public function index(Request $request, PlatformMetrics $metrics): View
     {
         $this->authorizeAdmin($request);
 
@@ -42,6 +45,10 @@ class AdminController extends Controller
             'activeUserCount' => User::where('status', 'active')->count(),
             'consumerCount' => Consumer::count(),
             'billCount' => Bill::where('status', '!=', 'void')->count(),
+            'paymentCount' => Payment::where('status', 'verified')->count(),
+            'billedCents' => $metrics->billedCents(),
+            'collectedCents' => $metrics->collectedCents(),
+            'outstandingCents' => $metrics->outstandingCents(),
             'roleCount' => Role::count(),
             'escalatedTicketCount' => SupportTicket::whereNotNull('escalated_at')->whereNotIn('status', ['resolved', 'closed'])->count(),
             'latestProviders' => WaterProvider::withCount('consumers')->latest()->limit(5)->get(),
@@ -92,6 +99,7 @@ class AdminController extends Controller
             'grace_days' => (int) SystemSetting::setting('default_grace_days', '0'),
             'disconnection_days' => (int) SystemSetting::setting('default_disconnection_days', '30'),
             'late_fee' => SystemSetting::setting('default_late_fee', '0.00'),
+            'reconnection_fee' => SystemSetting::setting('default_reconnection_fee', '0.00'),
         ]);
         $audit->record($provider, 'provider.created');
 
@@ -249,13 +257,19 @@ class AdminController extends Controller
             'water_provider_id' => ['nullable', 'integer', 'exists:water_providers,id'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'billing_period_id' => ['nullable', 'integer', 'exists:billing_periods,id'],
+            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'e_wallet', 'other'])],
+            'payment_status' => ['nullable', Rule::in(['pending', 'verified', 'rejected', 'reversed'])],
         ]);
         $billsQuery = Bill::query()->with(['provider', 'consumer'])
             ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+            ->when($filters['billing_period_id'] ?? null, fn ($query, $id) => $query->where('billing_period_id', $id))
             ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
             ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date));
-        $paymentsQuery = Payment::query()->with('consumer')
+        $paymentsQuery = Payment::query()->with(['consumer', 'verifier'])
             ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+            ->when($filters['payment_method'] ?? null, fn ($query, $method) => $query->where('method', $method))
+            ->when($filters['payment_status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
             ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date));
 
@@ -265,12 +279,47 @@ class AdminController extends Controller
                 ->withSum(['payments as collected_total' => fn ($query) => $query->where('status', 'verified')], 'amount')
                 ->orderBy('name')->get(),
             'filters' => $filters,
+            'billingPeriods' => BillingPeriod::query()
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->with('provider')->orderByDesc('starts_on')->get(),
             'billCount' => (clone $billsQuery)->where('status', '!=', 'void')->count(),
             'billedCents' => DecimalAmount::units((string) (clone $billsQuery)->where('status', '!=', 'void')->sum('total_amount'), 2),
             'collectedCents' => DecimalAmount::units((string) (clone $paymentsQuery)->where('status', 'verified')->sum('amount'), 2),
             'bills' => $billsQuery->latest()->paginate(20, ['*'], 'bills_page')->withQueryString(),
             'payments' => $paymentsQuery->latest()->paginate(20, ['*'], 'payments_page')->withQueryString(),
-            'audits' => AuditLog::latest()->limit(30)->get(),
+            'adjustments' => BillAdjustment::query()->with('bill.consumer')
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->when($filters['billing_period_id'] ?? null, fn ($query, $id) => $query->whereHas('bill', fn ($bill) => $bill->where('billing_period_id', $id)))
+                ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+                ->latest()->limit(10)->get(),
+            'billingIssues' => SupportTicket::query()->with('consumer')->whereNotNull('escalated_at')->where('type', 'billing')
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+                ->latest()->limit(10)->get(),
+            'paymentIssues' => SupportTicket::query()->with('consumer')->whereNotNull('escalated_at')->where('type', 'payment')
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+                ->latest()->limit(10)->get(),
+            'voidBills' => Bill::query()->with('consumer')->where('status', 'void')
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->when($filters['billing_period_id'] ?? null, fn ($query, $id) => $query->where('billing_period_id', $id))
+                ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+                ->latest()->limit(10)->get(),
+            'paymentExceptions' => Payment::query()->with('consumer')->whereIn('status', ['rejected', 'reversed'])
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->when($filters['payment_method'] ?? null, fn ($query, $method) => $query->where('method', $method))
+                ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+                ->latest()->limit(10)->get(),
+            'audits' => AuditLog::query()
+                ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+                ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+                ->latest()->limit(30)->get(),
         ]);
     }
 
@@ -284,6 +333,10 @@ class AdminController extends Controller
             'defaultGraceDays' => SystemSetting::setting('default_grace_days', '0'),
             'defaultDisconnectionDays' => SystemSetting::setting('default_disconnection_days', '30'),
             'defaultLateFee' => SystemSetting::setting('default_late_fee', '0.00'),
+            'defaultReconnectionFee' => SystemSetting::setting('default_reconnection_fee', '0.00'),
+            'notificationBillingDefault' => SystemSetting::setting('notification_billing_default', '1'),
+            'notificationPaymentDefault' => SystemSetting::setting('notification_payment_default', '1'),
+            'notificationSupportDefault' => SystemSetting::setting('notification_support_default', '1'),
         ]);
     }
 
@@ -296,6 +349,10 @@ class AdminController extends Controller
             'default_grace_days' => ['required', 'integer', 'between:0,365'],
             'default_disconnection_days' => ['required', 'integer', 'between:1,365'],
             'default_late_fee' => ['required', 'numeric', 'min:0', 'max:9999999.99', 'decimal:0,2'],
+            'default_reconnection_fee' => ['required', 'numeric', 'min:0', 'max:9999999.99', 'decimal:0,2'],
+            'notification_billing_default' => ['required', 'boolean'],
+            'notification_payment_default' => ['required', 'boolean'],
+            'notification_support_default' => ['required', 'boolean'],
         ]);
 
         foreach ($data as $key => $value) {
@@ -314,6 +371,9 @@ class AdminController extends Controller
             'water_provider_id' => ['nullable', 'integer', 'exists:water_providers,id'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'billing_period_id' => ['nullable', 'integer', 'exists:billing_periods,id'],
+            'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'e_wallet', 'other'])],
+            'payment_status' => ['nullable', Rule::in(['pending', 'verified', 'rejected', 'reversed'])],
         ]);
         $type = $filters['type'];
 
@@ -326,6 +386,7 @@ class AdminController extends Controller
                 fputcsv($output, ['Bill', 'Provider', 'Consumer', 'Amount', 'Status']);
                 Bill::query()->with(['provider', 'consumer'])
                     ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                    ->when($filters['billing_period_id'] ?? null, fn ($query, $id) => $query->where('billing_period_id', $id))
                     ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
                     ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
                     ->chunkById(100, function ($bills) use ($output): void {
@@ -337,6 +398,8 @@ class AdminController extends Controller
                 fputcsv($output, ['Reference', 'Provider', 'Consumer', 'Amount', 'Status']);
                 Payment::query()->with('consumer.provider')
                     ->when($filters['water_provider_id'] ?? null, fn ($query, $id) => $query->where('water_provider_id', $id))
+                    ->when($filters['payment_method'] ?? null, fn ($query, $method) => $query->where('method', $method))
+                    ->when($filters['payment_status'] ?? null, fn ($query, $status) => $query->where('status', $status))
                     ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
                     ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
                     ->chunkById(100, function ($payments) use ($output): void {

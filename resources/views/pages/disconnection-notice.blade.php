@@ -1,5 +1,5 @@
 <x-layouts::app :title="__('Service notice')">
-    <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 text-[#062E68] dark:text-white">
+    <main class="flex w-full min-w-0 flex-col gap-6 py-8 text-[#062E68] print:mx-auto print:max-w-3xl print:px-6 dark:text-white">
         <div class="flex justify-end print:hidden"><flux:button onclick="window.print()">Print notice</flux:button></div>
         <flux:card class="space-y-5">
             <header><flux:heading size="xl">Disconnection notice</flux:heading><flux:text>{{ $provider->name }}</flux:text></header>

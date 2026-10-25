@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ConsumerPortalController;
 use App\Http\Controllers\DashboardController;
@@ -24,9 +25,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('admin/roles', 'pages::admin-roles')->name('admin.roles.index');
     Route::get('admin/overview', [AdminController::class, 'overview'])->name('admin.overview');
     Route::get('admin/overview/export', [AdminController::class, 'exportOverview'])->name('admin.overview.export');
+    Route::get('admin/reports', [AdminReportController::class, 'index'])->name('admin.reports');
+    Route::get('admin/reports/export', [AdminReportController::class, 'export'])->name('admin.reports.export');
     Route::get('admin/settings', [AdminController::class, 'settings'])->name('admin.settings');
     Route::put('admin/settings', [AdminController::class, 'updateSettings'])->name('admin.settings.update');
     Route::get('admin/support', [SupportController::class, 'adminIndex'])->name('admin.support');
+    Route::post('admin/support/{ticket}/assign', [SupportController::class, 'assign'])->name('admin.support.assign');
+    Route::post('admin/support/{ticket}/status', [SupportController::class, 'updateStatus'])->name('admin.support.status');
     Route::post('admin/support/{ticket}/reply', [SupportController::class, 'adminReply'])->name('admin.support.reply');
     Route::post('admin/support/{ticket}/resolve', [SupportController::class, 'resolve'])->name('admin.support.resolve');
     Route::post('admin/providers', [AdminController::class, 'storeProvider'])->name('admin.providers.store');

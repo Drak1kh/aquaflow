@@ -1,5 +1,5 @@
 <x-layouts::app :title="__('Bill')">
-    <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 text-[#062E68] dark:text-white">
+    <main class="flex w-full min-w-0 flex-col gap-6 py-8 text-[#062E68] print:mx-auto print:max-w-3xl print:px-6 dark:text-white">
         <div class="flex items-center justify-between gap-3 print:hidden"><a class="text-[#079EE9] underline" href="{{ url()->previous() }}">Back</a><flux:button onclick="window.print()">Print bill</flux:button></div>
         <flux:card class="space-y-6">
             <header class="flex flex-wrap justify-between gap-4"><div><flux:heading size="xl">{{ $provider->name }}</flux:heading><flux:text>Water service bill</flux:text></div><div class="text-right"><strong>{{ $bill->bill_number }}</strong><p>{{ $bill->period->label }}</p></div></header>

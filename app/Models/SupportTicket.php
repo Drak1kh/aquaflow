@@ -21,6 +21,12 @@ class SupportTicket extends Model
         return $this->belongsTo(Consumer::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
     /** @return HasMany<TicketMessage, $this> */
     public function messages(): HasMany
     {

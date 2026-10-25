@@ -1,5 +1,5 @@
 <x-layouts::app :title="__('Provider report')">
-    <main class="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 text-[#062E68] dark:text-white">
+    <main class="flex w-full min-w-0 flex-col gap-8 py-8 text-[#062E68] dark:text-white">
         <header><flux:heading size="xl">Billing report · {{ $provider->name }}</flux:heading><flux:text>Operational totals from recorded bills and verified allocations</flux:text></header>
         <div><a class="text-[#079EE9] underline" href="{{ route('provider.report.export') }}">Download CSV</a></div>
         <div class="grid gap-6 md:grid-cols-3"><flux:card><flux:text>Bills</flux:text><flux:heading size="xl">{{ $bills->count() }}</flux:heading></flux:card><flux:card><flux:text>Billed</flux:text><flux:heading size="xl">{{ \App\DecimalAmount::format($billedCents) }}</flux:heading></flux:card><flux:card><flux:text>Outstanding</flux:text><flux:heading size="xl">{{ \App\DecimalAmount::format($outstandingCents) }}</flux:heading></flux:card></div>

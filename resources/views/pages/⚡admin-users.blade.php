@@ -2,6 +2,7 @@
 
 use App\Models\Role;
 use App\Models\User;
+use App\Models\WaterProvider;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -80,7 +81,7 @@ new #[Title('User management')] class extends Component {
         $direction = $this->sortDirection === 'desc' ? 'desc' : 'asc';
 
         return User::query()
-            ->with('role')
+            ->with(['role', 'memberships.provider', 'memberships.role'])
             ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%');
             }))
@@ -95,6 +96,13 @@ new #[Title('User management')] class extends Component {
     public function roles(): Collection
     {
         return Role::orderBy('name')->get();
+    }
+
+    /** @return Collection<int, WaterProvider> */
+    #[Computed]
+    public function providers(): Collection
+    {
+        return WaterProvider::where('status', 'active')->orderBy('name')->get();
     }
 
     #[Computed]
@@ -116,7 +124,7 @@ new #[Title('User management')] class extends Component {
     }
 }; ?>
 
-    <main class="w-full min-w-0 space-y-7 px-4 py-8 text-[#062E68] sm:px-6 lg:px-8 dark:text-white">
+    <main class="w-full min-w-0 space-y-7 py-8 text-[#062E68] dark:text-white">
         <header class="flex flex-col gap-5 border-b border-[#BDECF8] pb-7 sm:flex-row sm:items-end sm:justify-between dark:border-slate-700">
             <div class="space-y-2">
                 <flux:heading size="xl">User management</flux:heading>
@@ -198,12 +206,13 @@ new #[Title('User management')] class extends Component {
                     <flux:select.option value="">Assign later</flux:select.option>
                     @foreach ($this->roles as $role)<flux:select.option :value="$role->id" :selected="old('role_id') == $role->id">{{ $role->name }}</flux:select.option>@endforeach
                 </flux:select>
+                <flux:text class="text-xs">Provider permissions are assigned after the account is created.</flux:text>
                 <div class="flex justify-end gap-2"><flux:modal.close><flux:button>Cancel</flux:button></flux:modal.close><flux:button type="submit" variant="primary">Create & invite</flux:button></div>
             </form>
         </flux:modal>
 
         @foreach ($this->users as $user)
-            <flux:modal :name="'manage-user-'.$user->id" class="w-full max-w-xl" scroll="body">
+            <flux:modal :name="'manage-user-'.$user->id" class="w-full max-w-3xl" scroll="body">
                 <form method="POST" action="{{ route('admin.users.update', $user) }}" class="space-y-5">
                     @csrf @method('PUT')
                     <input type="hidden" name="_modal" value="manage-user-{{ $user->id }}">
@@ -227,9 +236,51 @@ new #[Title('User management')] class extends Component {
                                 <flux:select.option :value="$role->id" :selected="(old('_modal') === 'manage-user-'.$user->id ? old('role_id') : $user->role_id) == $role->id">{{ $role->name }}</flux:select.option>
                             @endforeach
                         </flux:select>
+                        <flux:text class="text-xs">This label does not grant provider access. Assign a provider role below.</flux:text>
                     @endif
                     <div class="flex justify-end gap-2"><flux:modal.close><flux:button>Cancel</flux:button></flux:modal.close><flux:button type="submit" variant="primary">Save changes</flux:button></div>
                 </form>
+                <div class="mt-6 space-y-4 border-t border-[#BDECF8] pt-5 dark:border-zinc-700">
+                    <div><flux:heading>Provider access</flux:heading><flux:text>Assign a provider role to control this user's operational permissions.</flux:text></div>
+                    @foreach ($user->memberships as $membership)
+                        <form method="POST" action="{{ route('admin.users.memberships.store', $user) }}" class="grid gap-3 rounded-xl border border-[#BDECF8] p-4 sm:grid-cols-3 dark:border-zinc-700">
+                            @csrf
+                            <input type="hidden" name="_modal" value="manage-user-{{ $user->id }}">
+                            <input type="hidden" name="water_provider_id" value="{{ $membership->water_provider_id }}">
+                            <p class="self-end text-sm font-semibold">{{ $membership->provider->name }}</p>
+                            <flux:select name="role_id" label="Provider role">
+                                @foreach ($this->roles as $role)
+                                    <flux:select.option :value="$role->id" :selected="$membership->role_id === $role->id">{{ $role->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:select name="status" label="Access">
+                                <flux:select.option value="active" :selected="$membership->status === 'active'">Active</flux:select.option>
+                                <flux:select.option value="inactive" :selected="$membership->status === 'inactive'">Inactive</flux:select.option>
+                            </flux:select>
+                            <flux:button type="submit" size="sm" class="sm:col-start-3">Save provider access</flux:button>
+                        </form>
+                    @endforeach
+                    @if ($this->providers->contains(fn ($provider) => ! $user->memberships->contains('water_provider_id', $provider->id)))
+                        <form method="POST" action="{{ route('admin.users.memberships.store', $user) }}" class="grid gap-3 rounded-xl border border-[#BDECF8] p-4 sm:grid-cols-3 dark:border-zinc-700">
+                            @csrf
+                            <input type="hidden" name="_modal" value="manage-user-{{ $user->id }}">
+                            <flux:select name="water_provider_id" label="Add provider" required>
+                                @foreach ($this->providers as $provider)
+                                    @unless ($user->memberships->contains('water_provider_id', $provider->id))
+                                        <flux:select.option :value="$provider->id">{{ $provider->name }}</flux:select.option>
+                                    @endunless
+                                @endforeach
+                            </flux:select>
+                            <flux:select name="role_id" label="Provider role" required>
+                                @foreach ($this->roles as $role)
+                                    <flux:select.option :value="$role->id">{{ $role->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <input type="hidden" name="status" value="active">
+                            <flux:button type="submit" size="sm" class="sm:self-end">Assign provider role</flux:button>
+                        </form>
+                    @endif
+                </div>
             </flux:modal>
         @endforeach
 

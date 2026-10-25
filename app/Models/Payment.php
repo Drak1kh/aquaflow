@@ -21,6 +21,12 @@ class Payment extends Model
         return $this->belongsTo(Consumer::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function verifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
     /** @return HasMany<PaymentAllocation, $this> */
     public function allocations(): HasMany
     {

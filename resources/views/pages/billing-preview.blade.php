@@ -1,5 +1,5 @@
 <x-layouts::app :title="__('Bill preview')">
-    <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 text-[#062E68] dark:text-white">
+    <main class="flex w-full min-w-0 flex-col gap-6 py-8 text-[#062E68] dark:text-white">
         <header><flux:heading size="xl">Bill preview</flux:heading><flux:text>{{ $provider->name }} · {{ $period->label }} · {{ $reading->connection->consumer->name }}</flux:text></header>
         <flux:card class="space-y-4">
             <flux:text>Connection {{ $reading->connection->connection_number }} · Reading {{ $reading->reading_date }}</flux:text>

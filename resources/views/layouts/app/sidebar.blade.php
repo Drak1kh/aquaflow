@@ -71,6 +71,7 @@
                         <flux:sidebar.item :href="route('admin.roles.index')" :current="request()->routeIs('admin.roles.*')" x-show="matchesSidebarItem($el.textContent) || matchesSidebarItem('User management')" wire:navigate>Roles &amp; permissions</flux:sidebar.item>
                     </flux:sidebar.group>
                     <flux:sidebar.item icon="chart-bar" :href="route('admin.overview')" :current="request()->routeIs('admin.overview')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Platform oversight</flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('admin.reports')" :current="request()->routeIs('admin.reports*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Platform reports</flux:sidebar.item>
                     <flux:sidebar.item icon="chat-bubble-left-right" :href="route('admin.support')" :current="request()->routeIs('admin.support*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Escalated support</flux:sidebar.item>
                     <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings')" :current="request()->routeIs('admin.settings*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>System settings</flux:sidebar.item>
                 @endif
@@ -129,6 +130,7 @@
                 'admin.users.index' => __('User management'),
                 'admin.roles.index' => __('Roles & permissions'),
                 'admin.overview' => __('Platform oversight'),
+                'admin.reports' => __('Platform reports'),
                 'admin.support' => __('Escalated support'),
                 'admin.settings' => __('System settings'),
                 'provider.index' => __('Provider workspace'),
