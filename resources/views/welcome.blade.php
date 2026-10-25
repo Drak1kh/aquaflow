@@ -63,7 +63,7 @@
                         @auth
                             <a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @else
-                            <a class="landing-button landing-button-white" href="{{ route('register') }}">Get started <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
+                            <a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @endauth
                         <a class="landing-button landing-button-ghost" href="#features">Explore AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-down" /></svg></a>
                     </div>
@@ -172,7 +172,7 @@
 
         <section class="landing-section landing-advisory" aria-labelledby="advisory-title"><div class="landing-container landing-advisory-grid"><div><h2 id="advisory-title">Stay informed about bills and service.</h2><p>Notifications cover new bills, due dates, payment status, disconnection notices, reconnection updates, and service advisories.</p></div><div class="landing-advisory-card"><div><span>Billing reminder</span><small>Example notification</small></div><h3>Upcoming due date</h3><p>Your current water bill is due soon. View the bill and outstanding balance in your account.</p><span>Account updates · Billing</span></div></div></section>
 
-        <section class="landing-cta" aria-labelledby="cta-title"><div class="landing-container landing-cta-inner"><div><h2 id="cta-title">Bring your water service into one clear flow.</h2><p>Create an account to manage your water service information with AquaFlow.</p></div><div class="landing-cta-actions">@auth<a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>@else<a class="landing-button landing-button-white" href="{{ route('register') }}">Get started with AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a><a href="{{ route('login') }}">Sign in</a>@endauth</div></div></section>
+        <section class="landing-cta" aria-labelledby="cta-title"><div class="landing-container landing-cta-inner"><div><h2 id="cta-title">Bring your water service into one clear flow.</h2><p>Ask your provider for an AquaFlow invitation to access your water account.</p></div><div class="landing-cta-actions">@auth<a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>@else<a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>@endauth</div></div></section>
     </main>
 
     <footer class="landing-footer">

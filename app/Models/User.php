@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -28,12 +29,15 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'status', 'is_super_admin'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    /** @var array<string, mixed> */
+    protected $attributes = ['status' => 'active', 'is_super_admin' => false];
 
     /**
      * Get the attributes that should be cast.
@@ -45,7 +49,38 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_super_admin' => 'boolean',
         ];
+    }
+
+    /** @return HasMany<ProviderMembership, $this> */
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(ProviderMembership::class);
+    }
+
+    /** @return HasMany<Consumer, $this> */
+    public function consumers(): HasMany
+    {
+        return $this->hasMany(Consumer::class);
+    }
+
+    public function canInProvider(string $permission, int $providerId): bool
+    {
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        if ($this->is_super_admin) {
+            return true;
+        }
+
+        return $this->memberships()
+            ->where('water_provider_id', $providerId)
+            ->where('status', 'active')
+            ->whereHas('provider', fn ($query) => $query->where('status', 'active'))
+            ->whereHas('role.permissions', fn ($query) => $query->where('code', $permission))
+            ->exists();
     }
 
     /**

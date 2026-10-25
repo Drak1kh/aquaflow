@@ -87,7 +87,9 @@ Online payment gateway integration, SMS, smart meters, automated reading, anomal
 
 ## Current Application State
 
-The current application implements a public preview page, authentication, account settings, and a placeholder authenticated dashboard. It does not yet implement the water management modules described above. Product capabilities in this document are planned scope unless explicitly described as currently implemented.
+The application now implements invitation-based authentication, provider memberships and configurable role permissions, provider and consumer records, connections and meter readings, rates and billing periods, bill generation, verified payments and balances, overdue fees, disconnection and reconnection history, a consumer portal, basic notifications and reports, support escalation, audit logs, and platform administration. The implementation is in the repository; production deployment has not been completed.
+
+External payment gateways, SMS, smart-meter integration, automated meter reading, advanced analytics, mobile apps, and the other integrations in this document remain planned enhancements.
 
 The application uses Laravel, Livewire, and Flux UI. Existing AquaFlow logo and banner assets are in `public/assets/`.
 

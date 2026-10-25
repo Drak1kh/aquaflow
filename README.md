@@ -1,6 +1,6 @@
 # AquaFlow
 
-AquaFlow is a water management system in early development. This repository currently includes a public preview page, account registration and sign-in, and an authenticated dashboard.
+AquaFlow is a water management and billing system with separate Super Admin, water provider, and consumer workspaces. Accounts are created by administrators; public registration is disabled.
 
 ## Requirements
 
@@ -28,7 +28,7 @@ Start the development processes:
 composer dev
 ```
 
-Open [http://localhost:8000](http://localhost:8000) and register an account. The development command starts the PHP server, queue listener, log viewer, and Vite in one terminal. Stop it with `Ctrl+C`.
+Seed local demo accounts using the command below, then sign in at the local application URL. The development command starts the PHP server, queue listener, log viewer, and Vite in one terminal. Stop it with `Ctrl+C`.
 
 ## Use MySQL instead
 
@@ -53,6 +53,20 @@ php artisan test --compact            # Run the test suite
 npm run build                         # Rebuild production assets
 ```
 
-To add the optional local demo account, run `php artisan db:seed --no-interaction`. The current seeder creates `test@example.com` with the password `password`; use that account only for local development.
+## Local demo accounts
+
+Run `php artisan db:seed --no-interaction` after migrating. In local and testing environments, this creates the following verified accounts and two separate providers:
+
+| Role | Email |
+| --- | --- |
+| Super Admin | `admin@aquaflow.test` |
+| North provider manager | `provider.north@aquaflow.test` |
+| South provider manager | `provider.south@aquaflow.test` |
+| North consumer | `consumer.north@aquaflow.test` |
+| South consumer | `consumer.south@aquaflow.test` |
+
+The seeder prints one generated password for all five accounts. To choose a password, set `AQUAFLOW_DEMO_PASSWORD` in `.env` before seeding. Running the seeder again keeps the same demo records and resets their passwords to the newly printed or configured value. Demo accounts are never seeded in production.
+
+For an additional sample meter reading and bill, run `php artisan db:seed --class=AquaFlowDemoSeeder --no-interaction`.
 
 If the page reports a missing Vite manifest, run `npm run build` or start `composer dev`. If SQLite fails to connect, confirm that `database/database.sqlite` exists and that PHP has `pdo_sqlite` enabled.

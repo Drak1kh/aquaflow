@@ -12,6 +12,12 @@
             return [...document.querySelectorAll('[data-flux-sidebar-item]')].some(item => this.matchesSidebarItem(item.textContent));
         },
     }">
+        @php
+            $navProviders = auth()->user()->is_super_admin
+                ? \App\Models\WaterProvider::where('status', 'active')->orderBy('name')->get()
+                : auth()->user()->memberships()->where('status', 'active')->with('provider')->get()->pluck('provider')->filter(fn ($provider) => $provider?->status === 'active');
+            $navProviderId = session('active_provider_id') ?? $navProviders->first()?->id;
+        @endphp
         <flux:sidebar sticky collapsible class="border-e border-zinc-200 bg-zinc-50 transition-[width,padding,transform] duration-300 ease-in-out motion-reduce:transition-none dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <a href="{{ route('dashboard') }}" wire:navigate aria-label="{{ __('AquaFlow dashboard') }}" class="relative flex h-16 min-w-0 flex-1 items-center overflow-hidden in-data-flux-sidebar-collapsed-desktop:mx-auto in-data-flux-sidebar-collapsed-desktop:w-10 in-data-flux-sidebar-collapsed-desktop:flex-none">
@@ -51,7 +57,38 @@
                 <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
+                @if (auth()->user()->is_super_admin)
+                    <flux:sidebar.item icon="user-group" :href="route('admin.index')" :current="request()->routeIs('admin.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Administration</flux:sidebar.item>
+                    <flux:sidebar.item icon="chart-bar" :href="route('admin.overview')" :current="request()->routeIs('admin.overview')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Platform oversight</flux:sidebar.item>
+                    <flux:sidebar.item icon="chat-bubble-left-right" :href="route('admin.support')" :current="request()->routeIs('admin.support*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Escalated support</flux:sidebar.item>
+                    <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings')" :current="request()->routeIs('admin.settings*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>System settings</flux:sidebar.item>
+                @endif
+                @if ($navProviderId)
+                    <flux:sidebar.item icon="users" :href="route('provider.index')" :current="request()->routeIs('provider.index')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Consumers & connections</flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('provider.billing')" :current="request()->routeIs('provider.billing', 'provider.bills.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Billing</flux:sidebar.item>
+                    <flux:sidebar.item icon="banknotes" :href="route('provider.payments')" :current="request()->routeIs('provider.payments*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Payments</flux:sidebar.item>
+                    <flux:sidebar.item icon="wrench-screwdriver" :href="route('provider.service')" :current="request()->routeIs('provider.service*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Service status</flux:sidebar.item>
+                    <flux:sidebar.item icon="chart-bar" :href="route('provider.report')" :current="request()->routeIs('provider.report')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Reports</flux:sidebar.item>
+                    <flux:sidebar.item icon="chat-bubble-left-right" :href="route('provider.support')" :current="request()->routeIs('provider.support*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Support</flux:sidebar.item>
+                @endif
+                @if (auth()->user()->consumers()->exists())
+                    <flux:sidebar.item icon="user-circle" :href="route('consumer.index')" :current="request()->routeIs('consumer.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>My account</flux:sidebar.item>
+                    <flux:sidebar.item icon="chat-bubble-left-right" :href="route('consumer.support')" :current="request()->routeIs('consumer.support*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Help & support</flux:sidebar.item>
+                @endif
             </flux:sidebar.nav>
+
+            @if ($navProviders->count() > 1 || (auth()->user()->is_super_admin && $navProviders->isNotEmpty()))
+                <form method="POST" action="{{ route('providers.switch') }}" class="flex flex-col gap-2 px-3 py-3 in-data-flux-sidebar-collapsed-desktop:hidden">
+                    @csrf
+                    <label for="active-provider" class="text-xs font-medium">Active provider</label>
+                    <select id="active-provider" name="water_provider_id" class="rounded border border-zinc-300 bg-white p-2 text-sm dark:border-zinc-700 dark:bg-zinc-800">
+                        @foreach ($navProviders as $provider)
+                            <option value="{{ $provider->id }}" @selected($navProviderId == $provider->id)>{{ $provider->name }}</option>
+                        @endforeach
+                    </select>
+                    <flux:button type="submit" size="sm">Switch</flux:button>
+                </form>
+            @endif
 
             <p x-cloak x-show="sidebarSearch.trim() !== '' && !sidebarHasResults" class="[x-cloak]:hidden px-3 text-sm text-zinc-500 in-data-flux-sidebar-collapsed-desktop:hidden dark:text-zinc-400">
                 {{ __('No menu items found') }}
@@ -76,6 +113,13 @@
                 'profile.edit' => __('Profile'),
                 'security.edit' => __('Security'),
                 'appearance.edit' => __('Appearance'),
+                'admin.index' => __('Administration'),
+                'provider.index' => __('Provider workspace'),
+                'provider.billing' => __('Billing'),
+                'provider.payments' => __('Payments'),
+                'provider.service' => __('Service status'),
+                'provider.report' => __('Reports'),
+                'consumer.index' => __('My account'),
                 default => __('Dashboard'),
             };
         @endphp

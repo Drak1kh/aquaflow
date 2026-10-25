@@ -15,11 +15,14 @@ new class extends Component {
      */
     public function deleteUser(Logout $logout): void
     {
+        $user = Auth::user();
+        abort_if($user->is_super_admin || $user->memberships()->exists() || $user->consumers()->exists(), 403);
+
         $this->validate([
             'password' => $this->currentPasswordRules(),
         ]);
 
-        tap(Auth::user(), $logout(...))->delete();
+        tap($user, $logout(...))->delete();
 
         $this->redirect('/', navigate: true);
     }

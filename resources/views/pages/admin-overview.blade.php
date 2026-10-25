@@ -1,0 +1,26 @@
+<x-layouts::app :title="__('Platform oversight')">
+    <main class="mx-auto flex w-full max-w-7xl flex-col gap-8 p-6 text-[#062E68] dark:text-white">
+        <header><flux:heading size="xl">Platform oversight</flux:heading><flux:text>Read-only billing, collections, and activity across providers</flux:text></header>
+        @include('partials.aquaflow-alerts')
+        <flux:card><form method="GET" action="{{ route('admin.overview') }}" class="flex flex-wrap items-end gap-3">
+            <flux:select name="water_provider_id" label="Provider"><flux:select.option value="">All providers</flux:select.option>@foreach ($providers as $provider)<flux:select.option value="{{ $provider->id }}" :selected="($filters['water_provider_id'] ?? null) == $provider->id">{{ $provider->name }}</flux:select.option>@endforeach</flux:select>
+            <flux:input name="from" label="From" type="date" value="{{ $filters['from'] ?? '' }}" />
+            <flux:input name="to" label="To" type="date" value="{{ $filters['to'] ?? '' }}" />
+            <flux:button type="submit" variant="primary">Apply filters</flux:button>
+        </form></flux:card>
+        <div class="flex gap-4 text-sm"><a class="text-[#079EE9] underline" href="{{ route('admin.overview.export', [...$filters, 'type' => 'bills']) }}">Download bills CSV</a><a class="text-[#079EE9] underline" href="{{ route('admin.overview.export', [...$filters, 'type' => 'payments']) }}">Download payments CSV</a></div>
+        <div class="grid gap-6 md:grid-cols-3"><flux:card><flux:text>Bills</flux:text><flux:heading size="xl">{{ $billCount }}</flux:heading></flux:card><flux:card><flux:text>Billed</flux:text><flux:heading size="xl">{{ \App\DecimalAmount::format($billedCents) }}</flux:heading></flux:card><flux:card><flux:text>Verified collections</flux:text><flux:heading size="xl">{{ \App\DecimalAmount::format($collectedCents) }}</flux:heading></flux:card></div>
+        <flux:card class="space-y-4"><flux:heading>Provider performance</flux:heading><div class="overflow-x-auto"><flux:table><flux:table.columns><flux:table.column>Provider</flux:table.column><flux:table.column>Consumers</flux:table.column><flux:table.column>Bills</flux:table.column><flux:table.column>Billed</flux:table.column><flux:table.column>Collected</flux:table.column></flux:table.columns><flux:table.rows>
+            @foreach ($providers as $provider)<flux:table.row><flux:table.cell>{{ $provider->name }}</flux:table.cell><flux:table.cell>{{ $provider->consumers_count }}</flux:table.cell><flux:table.cell>{{ $provider->bills_count }}</flux:table.cell><flux:table.cell>{{ $provider->billed_total ?? '0.00' }}</flux:table.cell><flux:table.cell>{{ $provider->collected_total ?? '0.00' }}</flux:table.cell></flux:table.row>@endforeach
+        </flux:table.rows></flux:table></div></flux:card>
+        <flux:card class="space-y-4"><flux:heading>Bills</flux:heading><div class="overflow-x-auto"><flux:table><flux:table.columns><flux:table.column>Number</flux:table.column><flux:table.column>Provider</flux:table.column><flux:table.column>Consumer</flux:table.column><flux:table.column>Amount</flux:table.column><flux:table.column>Status</flux:table.column></flux:table.columns><flux:table.rows>
+            @foreach ($bills as $bill)<flux:table.row><flux:table.cell>{{ $bill->bill_number }}</flux:table.cell><flux:table.cell>{{ $bill->provider->name }}</flux:table.cell><flux:table.cell>{{ $bill->consumer->name }}</flux:table.cell><flux:table.cell>{{ $bill->total_amount }}</flux:table.cell><flux:table.cell>{{ $bill->status }}</flux:table.cell></flux:table.row>@endforeach
+        </flux:table.rows></flux:table></div>{{ $bills->links() }}</flux:card>
+        <flux:card class="space-y-4"><flux:heading>Payments</flux:heading><div class="overflow-x-auto"><flux:table><flux:table.columns><flux:table.column>Reference</flux:table.column><flux:table.column>Consumer</flux:table.column><flux:table.column>Amount</flux:table.column><flux:table.column>Status</flux:table.column></flux:table.columns><flux:table.rows>
+            @foreach ($payments as $payment)<flux:table.row><flux:table.cell>{{ $payment->reference_number }}</flux:table.cell><flux:table.cell>{{ $payment->consumer->name }}</flux:table.cell><flux:table.cell>{{ $payment->amount }}</flux:table.cell><flux:table.cell>{{ $payment->status }}</flux:table.cell></flux:table.row>@endforeach
+        </flux:table.rows></flux:table></div>{{ $payments->links() }}</flux:card>
+        <flux:card class="space-y-4"><flux:heading>Recent activity</flux:heading><div class="overflow-x-auto"><flux:table><flux:table.columns><flux:table.column>When</flux:table.column><flux:table.column>Provider ID</flux:table.column><flux:table.column>Action</flux:table.column><flux:table.column>Record</flux:table.column></flux:table.columns><flux:table.rows>
+            @foreach ($audits as $audit)<flux:table.row><flux:table.cell>{{ $audit->created_at }}</flux:table.cell><flux:table.cell>{{ $audit->water_provider_id ?? 'Platform' }}</flux:table.cell><flux:table.cell>{{ $audit->action }}</flux:table.cell><flux:table.cell>{{ $audit->subject_type }} #{{ $audit->subject_id }}</flux:table.cell></flux:table.row>@endforeach
+        </flux:table.rows></flux:table></div></flux:card>
+    </main>
+</x-layouts::app>
