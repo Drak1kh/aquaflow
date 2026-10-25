@@ -54,11 +54,22 @@
             </flux:tooltip>
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
-                    {{ __('Dashboard') }}
+                <flux:sidebar.item icon="house" :href="auth()->user()->is_super_admin ? route('admin.index') : route('dashboard')" :current="request()->routeIs('dashboard') || (auth()->user()->is_super_admin && request()->routeIs('admin.index'))" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
+                    {{ auth()->user()->is_super_admin ? __('Admin dashboard') : __('Dashboard') }}
                 </flux:sidebar.item>
                 @if (auth()->user()->is_super_admin)
-                    <flux:sidebar.item icon="user-group" :href="route('admin.index')" :current="request()->routeIs('admin.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Administration</flux:sidebar.item>
+                    <flux:sidebar.group
+                        expandable
+                        :expanded="true"
+                        heading="User management"
+                        icon="user-group"
+                        x-show="sidebarSearch.trim() === '' || matchesSidebarItem('User management') || matchesSidebarItem('Users') || matchesSidebarItem('Roles & permissions') || matchesSidebarItem('Providers')"
+                        x-effect="if (sidebarSearch.trim() !== '') $el.setAttribute('open', '')"
+                    >
+                        <flux:sidebar.item :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" x-show="matchesSidebarItem($el.textContent) || matchesSidebarItem('User management')" wire:navigate>Users</flux:sidebar.item>
+                        <flux:sidebar.item :href="route('admin.providers.index')" :current="request()->routeIs('admin.providers.*')" x-show="matchesSidebarItem($el.textContent) || matchesSidebarItem('User management')" wire:navigate>Providers</flux:sidebar.item>
+                        <flux:sidebar.item :href="route('admin.roles.index')" :current="request()->routeIs('admin.roles.*')" x-show="matchesSidebarItem($el.textContent) || matchesSidebarItem('User management')" wire:navigate>Roles &amp; permissions</flux:sidebar.item>
+                    </flux:sidebar.group>
                     <flux:sidebar.item icon="chart-bar" :href="route('admin.overview')" :current="request()->routeIs('admin.overview')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Platform oversight</flux:sidebar.item>
                     <flux:sidebar.item icon="chat-bubble-left-right" :href="route('admin.support')" :current="request()->routeIs('admin.support*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Escalated support</flux:sidebar.item>
                     <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings')" :current="request()->routeIs('admin.settings*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>System settings</flux:sidebar.item>
@@ -113,7 +124,13 @@
                 'profile.edit' => __('Profile'),
                 'security.edit' => __('Security'),
                 'appearance.edit' => __('Appearance'),
-                'admin.index' => __('Administration'),
+                'admin.index' => __('Admin dashboard'),
+                'admin.providers.index' => __('Providers'),
+                'admin.users.index' => __('User management'),
+                'admin.roles.index' => __('Roles & permissions'),
+                'admin.overview' => __('Platform oversight'),
+                'admin.support' => __('Escalated support'),
+                'admin.settings' => __('System settings'),
                 'provider.index' => __('Provider workspace'),
                 'provider.billing' => __('Billing'),
                 'provider.payments' => __('Payments'),
@@ -131,6 +148,13 @@
                 <flux:breadcrumbs.item :href="route('dashboard')" icon="house" wire:navigate>{{ __('Main') }}</flux:breadcrumbs.item>
                 @if (request()->routeIs('dashboard'))
                     <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>
+                @elseif (request()->routeIs('admin.*'))
+                    @if (request()->routeIs('admin.index'))
+                        <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>
+                    @else
+                        <flux:breadcrumbs.item :href="route('admin.index')" wire:navigate>{{ __('Administration') }}</flux:breadcrumbs.item>
+                        <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>
+                    @endif
                 @else
                     <flux:breadcrumbs.item :href="route('profile.edit')" wire:navigate>{{ __('Settings') }}</flux:breadcrumbs.item>
                     <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>

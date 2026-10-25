@@ -17,6 +17,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('providers/switch', [AdminController::class, 'switchProvider'])->name('providers.switch');
 
     Route::get('admin', [AdminController::class, 'index'])->name('admin.index');
+    Route::livewire('admin/providers', 'pages::admin-providers')->name('admin.providers.index');
+    Route::livewire('admin/users', 'pages::admin-users')->name('admin.users.index');
+    Route::post('admin/users', [AdminController::class, 'storeUser'])->name('admin.users.store');
+    Route::post('admin/users/{user}/memberships', [AdminController::class, 'saveMembership'])->name('admin.users.memberships.store');
+    Route::livewire('admin/roles', 'pages::admin-roles')->name('admin.roles.index');
     Route::get('admin/overview', [AdminController::class, 'overview'])->name('admin.overview');
     Route::get('admin/overview/export', [AdminController::class, 'exportOverview'])->name('admin.overview.export');
     Route::get('admin/settings', [AdminController::class, 'settings'])->name('admin.settings');

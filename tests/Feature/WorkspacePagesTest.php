@@ -29,6 +29,7 @@ test('each role can open its workspace pages with empty operational data', funct
     $this->get(route('consumer.support'))->assertOk();
 
     $this->actingAs($admin)->get(route('admin.index'))->assertOk();
+    $this->get(route('admin.providers.index'))->assertOk();
     $this->get(route('admin.overview'))->assertOk();
     $this->get(route('admin.settings'))->assertOk();
     $this->get(route('admin.support'))->assertOk();

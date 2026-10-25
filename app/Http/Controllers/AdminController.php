@@ -9,15 +9,16 @@ use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Consumer;
 use App\Models\Payment;
-use App\Models\Permission;
 use App\Models\ProviderMembership;
 use App\Models\Role;
+use App\Models\SupportTicket;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\WaterProvider;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -34,15 +35,47 @@ class AdminController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        return view('pages.admin', [
-            'providers' => WaterProvider::withCount('consumers')->orderBy('name')->get(),
-            'roles' => Role::with('permissions')->orderBy('name')->get(),
-            'permissions' => Permission::orderBy('code')->get(),
-            'users' => User::withCount(['memberships', 'consumers'])->orderBy('name')->paginate(20),
+        return view('pages.admin-dashboard', [
             'providerCount' => WaterProvider::count(),
+            'activeProviderCount' => WaterProvider::where('status', 'active')->count(),
+            'userCount' => User::count(),
+            'activeUserCount' => User::where('status', 'active')->count(),
             'consumerCount' => Consumer::count(),
             'billCount' => Bill::where('status', '!=', 'void')->count(),
+            'roleCount' => Role::count(),
+            'escalatedTicketCount' => SupportTicket::whereNotNull('escalated_at')->whereNotIn('status', ['resolved', 'closed'])->count(),
+            'latestProviders' => WaterProvider::withCount('consumers')->latest()->limit(5)->get(),
+            'recentAudits' => AuditLog::latest()->limit(5)->get(),
         ]);
+    }
+
+    public function storeUser(Request $request, AuditRecorder $audit): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'role_id' => ['nullable', 'integer', Rule::exists('roles', 'id')],
+        ]);
+
+        $user = DB::transaction(function () use ($data, $audit): User {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Str::random(64),
+                'status' => 'active',
+                'role_id' => $data['role_id'] ?? null,
+            ]);
+            $audit->record($user, 'user.created');
+
+            return $user;
+        });
+
+        Password::sendResetLink(['email' => $user->email]);
+        $user->sendEmailVerificationNotification();
+
+        return redirect()->route('admin.users.index')->with('status', 'User created. An invitation was sent to '.$user->email.'.');
     }
 
     public function storeProvider(Request $request, AuditRecorder $audit): RedirectResponse
@@ -83,13 +116,54 @@ class AdminController extends Controller
     public function updateUser(Request $request, User $user, AuditRecorder $audit): RedirectResponse
     {
         $this->authorizeAdmin($request);
-        $data = $request->validate(['status' => ['required', Rule::in(['active', 'inactive', 'suspended'])]]);
-        abort_if($user->id === $request->user()->id && $data['status'] !== 'active', 422);
-        $before = ['status' => $user->status];
+        if ($request->has('email')) {
+            $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+        }
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'status' => ['required', Rule::in(['active', 'inactive', 'suspended'])],
+            'role_id' => ['sometimes', 'nullable', 'integer', Rule::exists('roles', 'id'), Rule::prohibitedIf($user->is_super_admin)],
+        ]);
+        abort_if($user->id === $request->user()->id && $data['status'] !== 'active', 422, 'You cannot deactivate your own account.');
+        $before = $user->only(['name', 'email', 'status', 'role_id']);
+        $emailChanged = isset($data['email']) && $data['email'] !== $user->email;
+        if ($emailChanged) {
+            $user->email_verified_at = null;
+        }
         $user->update($data);
-        $audit->record($user, 'user.status.updated', $before);
+        $audit->record($user, 'user.updated', $before, $user->only(['name', 'email', 'status', 'role_id']));
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+        }
 
-        return back()->with('status', 'User status updated.');
+        return back()->with('status', 'User account updated.');
+    }
+
+    public function saveMembership(Request $request, User $user, AuditRecorder $audit): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $data = $request->validate([
+            'water_provider_id' => ['required', 'integer', Rule::exists('water_providers', 'id')],
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
+            'status' => ['required', Rule::in(['active', 'inactive'])],
+        ]);
+        abort_unless(
+            WaterProvider::whereKey($data['water_provider_id'])->where('status', 'active')->exists()
+                || ProviderMembership::where('water_provider_id', $data['water_provider_id'])->where('user_id', $user->id)->exists(),
+            422,
+            'New access can only be assigned to active providers.',
+        );
+        $membership = ProviderMembership::firstOrNew([
+            'water_provider_id' => $data['water_provider_id'],
+            'user_id' => $user->id,
+        ]);
+        $before = $membership->exists ? $membership->only(['role_id', 'status']) : null;
+        $membership->fill(['role_id' => $data['role_id'], 'status' => $data['status']]);
+        $membership->save();
+        $audit->record($membership, 'membership.saved', $before);
+
+        return back()->with('status', 'Provider access saved.');
     }
 
     public function storeRole(Request $request, AuditRecorder $audit): RedirectResponse
@@ -98,11 +172,18 @@ class AdminController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'slug' => ['required', 'alpha_dash', 'max:100', 'unique:roles,slug'],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['integer', Rule::exists('permissions', 'id')],
         ]);
-        $role = Role::create($data);
-        $audit->record($role, 'role.created');
+        $role = DB::transaction(function () use ($data, $audit): Role {
+            $role = Role::create(['name' => $data['name'], 'slug' => $data['slug']]);
+            $role->permissions()->sync($data['permissions'] ?? []);
+            $audit->record($role, 'role.created', null, ['name' => $role->name, 'slug' => $role->slug, 'permissions' => $role->permissions()->pluck('code')->all()]);
 
-        return back()->with('status', 'Role created. Assign permissions below.');
+            return $role;
+        });
+
+        return redirect()->route('admin.roles.index')->with('status', $role->name.' role created.');
     }
 
     public function inviteStaff(Request $request, AuditRecorder $audit): RedirectResponse
@@ -133,10 +214,20 @@ class AdminController extends Controller
     public function updateRole(Request $request, Role $role, AuditRecorder $audit): RedirectResponse
     {
         $this->authorizeAdmin($request);
-        $data = $request->validate(['permissions' => ['array'], 'permissions.*' => ['integer', Rule::exists('permissions', 'id')]]);
-        $before = $role->permissions()->pluck('code')->all();
-        $role->permissions()->sync($data['permissions'] ?? []);
-        $audit->record($role, 'role.permissions.updated', ['permissions' => $before], ['permissions' => $role->permissions()->pluck('code')->all()]);
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:100'],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['integer', Rule::exists('permissions', 'id')],
+        ]);
+        DB::transaction(function () use ($role, $data, $audit): void {
+            $before = $role->permissions()->pluck('code')->all();
+            $oldName = $role->name;
+            if (isset($data['name'])) {
+                $role->update(['name' => $data['name']]);
+            }
+            $role->permissions()->sync($data['permissions'] ?? []);
+            $audit->record($role, 'role.permissions.updated', ['name' => $oldName, 'permissions' => $before], ['name' => $role->name, 'permissions' => $role->permissions()->pluck('code')->all()]);
+        });
 
         return back()->with('status', 'Role permissions updated.');
     }
