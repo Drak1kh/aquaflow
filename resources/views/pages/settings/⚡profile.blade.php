@@ -41,6 +41,7 @@ new #[Title('Profile settings')] class extends Component {
 
         $user->save();
 
+        Flux::modal('edit-profile')->close();
         Flux::toast(variant: 'success', text: __('Profile updated.'));
     }
 
@@ -82,40 +83,49 @@ new #[Title('Profile settings')] class extends Component {
     <flux:heading level="2" class="sr-only">{{ __('Profile settings') }}</flux:heading>
 
     <x-pages::settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
-        <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
+        <div class="my-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+            <div class="min-w-0">
+                <flux:heading>{{ Auth::user()->name }}</flux:heading>
+                <flux:text class="mt-1 break-all">{{ Auth::user()->email }}</flux:text>
+            </div>
+            <flux:modal.trigger name="edit-profile">
+                <flux:button icon="pencil-square">{{ __('Edit profile') }}</flux:button>
+            </flux:modal.trigger>
+        </div>
 
-            <div>
+        <flux:modal name="edit-profile" :show="$errors->any()" class="w-full max-w-lg">
+            <form wire:submit="updateProfileInformation" class="space-y-6">
+                <div>
+                    <flux:heading size="lg">{{ __('Edit profile') }}</flux:heading>
+                    <flux:text class="mt-2">{{ __('Update your name and email address.') }}</flux:text>
+                </div>
+                <flux:input wire:model="name" :label="__('Name')" type="text" required autocomplete="name" />
                 <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
 
                 @if ($this->hasUnverifiedEmail)
                     <div>
-                        <flux:text class="mt-4">
+                        <flux:text>
                             {{ __('Your email address is unverified.') }}
-
-                            <flux:link class="text-sm cursor-pointer" wire:click.prevent="resendVerificationNotification">
+                            <flux:link class="cursor-pointer text-sm" wire:click.prevent="resendVerificationNotification">
                                 {{ __('Click here to re-send the verification email.') }}
                             </flux:link>
                         </flux:text>
-
                         @if (session('status') === 'verification-link-sent')
-                            <flux:text class="mt-2 font-medium !dark:text-green-400 !text-green-600">
+                            <flux:text class="mt-2 font-medium !text-green-600 !dark:text-green-400">
                                 {{ __('A new verification link has been sent to your email address.') }}
                             </flux:text>
                         @endif
                     </div>
                 @endif
-            </div>
 
-            <div class="flex items-center gap-4">
-                <div class="flex items-center justify-end">
-                    <flux:button variant="primary" type="submit" class="w-full" data-test="update-profile-button">
-                        {{ __('Save') }}
-                    </flux:button>
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="primary" type="submit" data-test="update-profile-button">{{ __('Save') }}</flux:button>
                 </div>
-
-            </div>
-        </form>
+            </form>
+        </flux:modal>
 
         @if ($this->showDeleteUser)
             <livewire:pages::settings.delete-user-form />

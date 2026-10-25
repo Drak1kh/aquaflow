@@ -48,9 +48,23 @@
             </flux:tooltip>
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
+                <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard', 'dashboard.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
+                @if (auth()->user()->role === \App\UserRole::SuperAdmin)
+                    <flux:sidebar.item icon="users" :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Users') }}</flux:sidebar.item>
+                    <flux:sidebar.item icon="building-office" :href="route('admin.providers.index')" :current="request()->routeIs('admin.providers.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Providers') }}</flux:sidebar.item>
+                    <flux:sidebar.item icon="shield-check" :href="route('admin.permissions.index')" :current="request()->routeIs('admin.permissions.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Roles & Permissions') }}</flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('admin.billing.index')" :current="request()->routeIs('admin.billing.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Billing Oversight') }}</flux:sidebar.item>
+                    <flux:sidebar.item icon="credit-card" :href="route('admin.payments.index')" :current="request()->routeIs('admin.payments.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Payment Oversight') }}</flux:sidebar.item>
+                    <flux:sidebar.item icon="chart-bar" :href="route('admin.reports.index')" :current="request()->routeIs('admin.reports.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Reports') }}</flux:sidebar.item>
+                    <flux:sidebar.item icon="lifebuoy" :href="route('admin.tickets.index')" :current="request()->routeIs('admin.tickets.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Disputes') }}</flux:sidebar.item>
+                    <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings.index')" :current="request()->routeIs('admin.settings.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('System Settings') }}</flux:sidebar.item>
+                @elseif (auth()->user()->role === \App\UserRole::WaterProvider)
+                    <flux:sidebar.item icon="building-office" :href="route('dashboard.provider')" :current="request()->routeIs('provider.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Provider Operations') }}</flux:sidebar.item>
+                @else
+                    <flux:sidebar.item icon="lifebuoy" :href="route('dashboard.consumer')" :current="request()->routeIs('portal.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('My Account & Support') }}</flux:sidebar.item>
+                @endif
             </flux:sidebar.nav>
 
             <p x-cloak x-show="sidebarSearch.trim() !== '' && !sidebarHasResults" class="[x-cloak]:hidden px-3 text-sm text-zinc-500 in-data-flux-sidebar-collapsed-desktop:hidden dark:text-zinc-400">
@@ -59,16 +73,6 @@
 
             <flux:spacer />
 
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank" x-show="matchesSidebarItem($el.textContent)">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank" x-show="matchesSidebarItem($el.textContent)">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
-            </flux:sidebar.nav>
-
         </flux:sidebar>
 
         @php
@@ -76,6 +80,14 @@
                 'profile.edit' => __('Profile'),
                 'security.edit' => __('Security'),
                 'appearance.edit' => __('Appearance'),
+                'admin.users.index' => __('Users'),
+                'admin.providers.index' => __('Providers'),
+                'admin.permissions.index' => __('Roles & Permissions'),
+                'admin.billing.index', 'admin.billing.show' => __('Billing Oversight'),
+                'admin.payments.index' => __('Payment Oversight'),
+                'admin.reports.index', 'admin.reports.print' => __('Reports'),
+                'admin.tickets.index', 'admin.tickets.show' => __('Disputes'),
+                'admin.settings.index' => __('System Settings'),
                 default => __('Dashboard'),
             };
         @endphp
@@ -85,10 +97,10 @@
 
             <flux:breadcrumbs class="min-w-0">
                 <flux:breadcrumbs.item :href="route('dashboard')" icon="house" wire:navigate>{{ __('Main') }}</flux:breadcrumbs.item>
-                @if (request()->routeIs('dashboard'))
+                @if (request()->routeIs('dashboard', 'dashboard.*'))
                     <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>
                 @else
-                    <flux:breadcrumbs.item :href="route('profile.edit')" wire:navigate>{{ __('Settings') }}</flux:breadcrumbs.item>
+                    <flux:breadcrumbs.item :href="route('dashboard')" wire:navigate>{{ app(\App\Actions\PlatformSettings::class)->get('platform_name') }}</flux:breadcrumbs.item>
                     <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>
                 @endif
             </flux:breadcrumbs>
@@ -126,6 +138,7 @@
                                 <div class="grid flex-1 text-start text-sm leading-tight">
                                     <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
                                     <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
+                                    <flux:text class="truncate">{{ auth()->user()->role->label() }}</flux:text>
                                 </div>
                             </div>
                         </div>

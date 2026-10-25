@@ -1,0 +1,303 @@
+<?php
+
+namespace App\Http\Controllers\Provider;
+
+use App\Actions\AuditLogger;
+use App\Actions\BillingService;
+use App\Actions\PaymentService;
+use App\Actions\PlatformSettings;
+use App\Http\Controllers\Controller;
+use App\Models\Bill;
+use App\Models\Connection;
+use App\Models\Consumer;
+use App\Models\MeterReading;
+use App\Models\Payment;
+use App\Models\SupportTicket;
+use App\Models\TicketMessage;
+use App\Models\User;
+use App\Models\WaterRate;
+use App\Notifications\EscalatedTicketNotification;
+use App\UserRole;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class OperationsController extends Controller
+{
+    public function index(Request $request, BillingService $billing): View
+    {
+        $providerId = $request->user()->water_provider_id;
+        $connections = Connection::with('consumer')->where('water_provider_id', $providerId)->orderBy('number')->get();
+        $preview = null;
+
+        if ($request->filled(['connection', 'month'])) {
+            $request->validate(['connection' => ['required', 'integer'], 'month' => ['required', 'date_format:Y-m']]);
+            $connection = $connections->firstWhere('id', $request->integer('connection'));
+            abort_if($connection === null, 404);
+            $preview = $billing->preview($connection, $request->string('month').'-01');
+        }
+
+        return view('provider.operations', [
+            'provider' => $request->user()->waterProvider,
+            'consumers' => Consumer::where('water_provider_id', $providerId)->with('portalUser')->orderBy('name')->get(),
+            'connections' => $connections,
+            'rates' => WaterRate::where('water_provider_id', $providerId)->latest('effective_from')->limit(8)->get(),
+            'bills' => Bill::with(['consumer', 'allocations'])->where('water_provider_id', $providerId)->latest('id')->limit(30)->get(),
+            'payments' => Payment::with('consumer')->where('water_provider_id', $providerId)->latest('id')->limit(30)->get(),
+            'tickets' => SupportTicket::with('consumer')->where('water_provider_id', $providerId)->latest('id')->limit(20)->get(),
+            'preview' => $preview,
+        ]);
+    }
+
+    public function consumer(Request $request, AuditLogger $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'account_number' => ['required', 'string', 'max:80', Rule::unique('consumers')->where('water_provider_id', $request->user()->water_provider_id)],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['required', 'string', 'max:2000'],
+        ]);
+        $consumer = Consumer::create([...$data, 'water_provider_id' => $request->user()->water_provider_id]);
+        $audit->record($consumer, 'consumer.created', $request->user(), after: $data);
+
+        return back()->with('status', 'Consumer created.');
+    }
+
+    public function consumerStatus(Request $request, Consumer $consumer, AuditLogger $audit): RedirectResponse
+    {
+        $this->scope($request, $consumer);
+        $consumer->is_active = ! $consumer->is_active;
+        $consumer->save();
+        $audit->record($consumer, 'consumer.status_changed', $request->user(), after: ['is_active' => $consumer->is_active]);
+
+        return back()->with('status', 'Consumer status updated.');
+    }
+
+    public function activatePortal(Request $request, Consumer $consumer, AuditLogger $audit): RedirectResponse
+    {
+        $this->scope($request, $consumer);
+        abort_if($consumer->portalUser()->exists(), 422);
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:12'],
+        ]);
+        DB::transaction(function () use ($consumer, $data, $audit, $request): void {
+            $user = User::create(['name' => $consumer->name, 'email' => $data['email'], 'password' => $data['password']]);
+            $user->role = UserRole::Consumer;
+            $user->consumer_id = $consumer->id;
+            $user->must_change_password = true;
+            $user->save();
+            $audit->record($user, 'consumer.portal_activated', $request->user(), after: ['consumer_id' => $consumer->id]);
+        });
+
+        return back()->with('status', 'Portal account created. Share the temporary password privately.');
+    }
+
+    public function connection(Request $request, AuditLogger $audit): RedirectResponse
+    {
+        $providerId = $request->user()->water_provider_id;
+        $data = $request->validate([
+            'consumer_id' => ['required', Rule::exists('consumers', 'id')->where('water_provider_id', $providerId)],
+            'number' => ['required', 'string', 'max:80', Rule::unique('connections')->where('water_provider_id', $providerId)],
+            'meter_number' => ['required', 'string', 'max:80', Rule::unique('connections')->where('water_provider_id', $providerId)],
+            'installed_at' => ['nullable', 'date'],
+        ]);
+        $connection = Connection::create([...$data, 'water_provider_id' => $providerId]);
+        $audit->record($connection, 'connection.created', $request->user(), after: $data);
+
+        return back()->with('status', 'Connection created.');
+    }
+
+    public function reading(Request $request, AuditLogger $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'connection_id' => ['required', Rule::exists('connections', 'id')->where('water_provider_id', $request->user()->water_provider_id)],
+            'period_month' => ['required', 'date_format:Y-m'],
+            'current_reading' => ['required', 'numeric', 'min:0'],
+        ]);
+        $month = CarbonImmutable::parse($data['period_month'].'-01')->toDateString();
+        if (MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', $month)->exists()) {
+            throw ValidationException::withMessages(['period_month' => 'A reading already exists for this month.']);
+        }
+        if (MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', '>', $month)->exists()) {
+            throw ValidationException::withMessages(['period_month' => 'Record readings in chronological order.']);
+        }
+        $lastReading = MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', '<', $month)->latest('period_month')->first();
+        $previous = $lastReading ? $lastReading->current_reading : '0.000';
+
+        $current = (string) $data['current_reading'];
+        if (! is_numeric($current)) {
+            throw ValidationException::withMessages(['current_reading' => 'Enter a valid meter reading.']);
+        }
+
+        if (bccomp($current, $previous, 3) < 0) {
+            throw ValidationException::withMessages(['current_reading' => 'The reading cannot be lower than the previous reading.']);
+        }
+
+        $reading = MeterReading::create([
+            'connection_id' => $data['connection_id'], 'water_provider_id' => $request->user()->water_provider_id,
+            'period_month' => $month, 'previous_reading' => $previous,
+            'current_reading' => $data['current_reading'], 'recorded_by' => $request->user()->id,
+        ]);
+        $audit->record($reading, 'reading.recorded', $request->user(), after: ['current_reading' => $reading->current_reading]);
+
+        return back()->with('status', 'Reading recorded.');
+    }
+
+    public function rate(Request $request, AuditLogger $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'base_charge' => ['required', 'numeric', 'min:0'],
+            'unit_rate' => ['required', 'numeric', 'min:0'],
+            'effective_from' => ['required', 'date', Rule::unique('water_rates')->where('water_provider_id', $request->user()->water_provider_id)],
+        ]);
+        $rate = WaterRate::create([...$data, 'water_provider_id' => $request->user()->water_provider_id]);
+        $audit->record($rate, 'rate.created', $request->user(), after: $data);
+
+        return back()->with('status', 'Rate saved.');
+    }
+
+    public function bill(Request $request, BillingService $billing): RedirectResponse
+    {
+        $data = $request->validate([
+            'connection_id' => ['required', Rule::exists('connections', 'id')->where('water_provider_id', $request->user()->water_provider_id)],
+            'period_month' => ['required', 'date_format:Y-m'],
+        ]);
+        $connection = Connection::whereKey($data['connection_id'])->firstOrFail();
+        $billing->generate($connection, $data['period_month'].'-01', $request->user());
+
+        return back()->with('status', 'Bill generated.');
+    }
+
+    public function batchBills(Request $request, BillingService $billing): RedirectResponse
+    {
+        $data = $request->validate(['period_month' => ['required', 'date_format:Y-m']]);
+        $month = $data['period_month'].'-01';
+        $generated = 0;
+        $skipped = 0;
+
+        if (! WaterRate::where('water_provider_id', $request->user()->water_provider_id)->whereDate('effective_from', '<=', CarbonImmutable::parse($month)->endOfMonth()->toDateString())->exists()) {
+            throw ValidationException::withMessages(['period_month' => 'Configure a water rate before generating bills for this month.']);
+        }
+
+        Connection::where('water_provider_id', $request->user()->water_provider_id)->where('status', 'active')
+            ->chunkById(100, function ($connections) use ($month, $billing, $request, &$generated, &$skipped): void {
+                foreach ($connections as $connection) {
+                    if (Bill::where('connection_id', $connection->id)->whereDate('period_month', $month)->exists() || ! MeterReading::where('connection_id', $connection->id)->whereDate('period_month', $month)->exists()) {
+                        $skipped++;
+
+                        continue;
+                    }
+                    $billing->generate($connection, $month, $request->user());
+                    $generated++;
+                }
+            });
+
+        return back()->with('status', "{$generated} bills generated; {$skipped} connections skipped.");
+    }
+
+    public function payment(Request $request, AuditLogger $audit): RedirectResponse
+    {
+        $providerId = $request->user()->water_provider_id;
+        $data = $request->validate([
+            'bill_id' => ['required', Rule::exists('bills', 'id')->where('water_provider_id', $providerId)],
+            'reference' => ['required', 'string', 'max:80', Rule::unique('payments')->where('water_provider_id', $providerId)],
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'method' => ['required', Rule::in(['cash', 'bank_transfer', 'e_wallet', 'other'])],
+            'paid_at' => ['required', 'date'],
+            'remarks' => ['nullable', 'string', 'max:2000'],
+            'proof' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ]);
+        $bill = Bill::whereKey($data['bill_id'])->firstOrFail();
+        $amount = (string) $data['amount'];
+        if (! is_numeric($amount) || $bill->status === 'void' || bccomp($amount, $bill->balance(), 2) > 0) {
+            throw ValidationException::withMessages(['amount' => 'The amount exceeds the bill balance.']);
+        }
+        unset($data['proof']);
+        $payment = Payment::create([
+            ...$data, 'water_provider_id' => $providerId, 'consumer_id' => $bill->consumer_id,
+            'proof_path' => $request->file('proof')?->store('payment-proofs'),
+        ]);
+        $audit->record($payment, 'payment.recorded', $request->user(), after: ['amount' => $payment->amount, 'bill_id' => $bill->id]);
+
+        return back()->with('status', 'Payment recorded and awaiting verification.');
+    }
+
+    public function verifyPayment(Request $request, Payment $payment, PaymentService $service): RedirectResponse
+    {
+        $this->scope($request, $payment);
+        $service->verify($payment, $request->user());
+
+        return back()->with('status', 'Payment verified.');
+    }
+
+    public function rejectPayment(Request $request, Payment $payment, AuditLogger $audit): RedirectResponse
+    {
+        $this->scope($request, $payment);
+        $data = $request->validate(['remarks' => ['required', 'string', 'max:2000']]);
+        abort_unless($payment->status === 'pending', 422);
+        $payment->status = 'rejected';
+        $payment->remarks = $data['remarks'];
+        $payment->save();
+        $audit->record($payment, 'payment.rejected', $request->user(), after: ['remarks' => $data['remarks']]);
+
+        return back()->with('status', 'Payment rejected.');
+    }
+
+    public function escalate(Request $request, SupportTicket $ticket, AuditLogger $audit, PlatformSettings $settings): RedirectResponse
+    {
+        $this->scope($request, $ticket);
+        abort_if($ticket->escalated_at !== null, 422);
+        $ticket->escalated_at = now();
+        $ticket->status = 'under_review';
+        $ticket->save();
+        $audit->record($ticket, 'ticket.escalated', $request->user());
+
+        if ($settings->get('email_notifications') === '1') {
+            User::where('role', UserRole::SuperAdmin->value)->where('is_active', true)
+                ->whereNotNull('email')->each(fn (User $admin) => $admin->notify(new EscalatedTicketNotification($ticket->id, $ticket->subject, $ticket->waterProvider->name)));
+        }
+
+        return back()->with('status', 'Ticket escalated to Super Admin.');
+    }
+
+    public function replyTicket(Request $request, SupportTicket $ticket, AuditLogger $audit): RedirectResponse
+    {
+        $this->scope($request, $ticket);
+        abort_if($ticket->status === 'closed', 422);
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:10000'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ]);
+        $message = $ticket->messages()->create([
+            'author_id' => $request->user()->id,
+            'body' => $data['body'],
+            'attachment_path' => $request->file('attachment')?->store('ticket-attachments'),
+            'attachment_name' => $request->file('attachment')?->getClientOriginalName(),
+        ]);
+        $audit->record($message, 'ticket.message_added', $request->user(), after: ['ticket_id' => $ticket->id]);
+
+        return back()->with('status', 'Response sent.');
+    }
+
+    public function attachment(Request $request, TicketMessage $message): StreamedResponse
+    {
+        $this->scope($request, $message->supportTicket);
+        abort_if($message->attachment_path === null, 404);
+
+        return Storage::disk('local')->download($message->attachment_path, $message->attachment_name);
+    }
+
+    /** @param Consumer|Payment|SupportTicket $record */
+    private function scope(Request $request, $record): void
+    {
+        abort_unless($record->water_provider_id === $request->user()->water_provider_id, 404);
+    }
+}

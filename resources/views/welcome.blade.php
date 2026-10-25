@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Explore the early preview of AquaFlow, a water management platform being built for utilities and consumers.">
+    <meta name="description" content="AquaFlow brings water billing, payment records, usage and support into one place for providers and consumers.">
     <title>AquaFlow — Water Management System</title>
     <link rel="icon" href="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" type="image/png" sizes="96x96">
     @fonts
@@ -31,9 +31,6 @@
                     @auth
                         <a class="landing-mobile-primary" href="{{ route('dashboard') }}">Dashboard</a>
                     @else
-                        @if (Route::has('register'))
-                            <a class="landing-mobile-primary" href="{{ route('register') }}">Get started</a>
-                        @endif
                         <a href="{{ route('login') }}">Sign in</a>
                     @endauth
                     <a href="#features">Features</a><a href="#audiences">Who it's for</a><a href="#how-it-works">How it works</a>
@@ -44,9 +41,7 @@
                     <a class="landing-button landing-button-small" href="{{ route('dashboard') }}">Dashboard</a>
                 @else
                     <a class="landing-sign-in" href="{{ route('login') }}">Sign in</a>
-                    @if (Route::has('register'))
-                        <a class="landing-button landing-button-small" href="{{ route('register') }}">Get started <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
-                    @endif
+                    <a class="landing-button landing-button-small" href="{{ route('login') }}">Open account <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                 @endauth
             </div>
         </div>
@@ -56,18 +51,18 @@
         <section class="landing-hero" aria-labelledby="hero-title">
             <div class="landing-container landing-hero-grid">
                 <div class="landing-hero-copy">
-                    <p class="landing-hero-note"><span></span> AquaFlow is in early preview</p>
+                    <p class="landing-hero-note"><span></span> Water operations, clearly connected</p>
                     <h1 id="hero-title">Smarter water management.<br><em>Better service.</em> Every drop counts.</h1>
-                    <p class="landing-hero-lead">AquaFlow is being built to bring water consumption monitoring, billing, payment records, service requests, and utility operations together in one intelligent platform.</p>
+                    <p class="landing-hero-lead">AquaFlow brings water consumption, billing, payment records, and support requests into one place for providers and consumers.</p>
                     <div class="landing-hero-actions">
                         @auth
                             <a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @else
-                            <a class="landing-button landing-button-white" href="{{ route('register') }}">Get started <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
+                            <a class="landing-button landing-button-white" href="{{ route('login') }}">Get started <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @endauth
                         <a class="landing-button landing-button-ghost" href="#features">Explore AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-down" /></svg></a>
                     </div>
-                    <p class="landing-hero-trust">Create an account to explore the preview. Water management tools are still in development.</p>
+                    <p class="landing-hero-trust">Accounts are created by your provider or AquaFlow administrator. Sign in with the details they gave you.</p>
                 </div>
                 <div class="landing-preview-wrap">
                     <div class="landing-preview-caption"><span>AquaFlow across your devices</span><strong>Illustrative preview</strong></div>
@@ -172,7 +167,7 @@
 
         <section class="landing-section landing-advisory" aria-labelledby="advisory-title"><div class="landing-container landing-advisory-grid"><div><h2 id="advisory-title">Important updates, right when they matter.</h2><p>AquaFlow can help utilities share billing reminders, maintenance schedules, service interruptions, payment confirmations, and community announcements.</p></div><div class="landing-advisory-card"><div><span>Service advisory</span><small>Example notification</small></div><h3>Scheduled maintenance</h3><p>Water service will temporarily be unavailable in selected areas from 9:00 AM to 12:00 PM.</p><span>Service updates · Maintenance</span></div></div></section>
 
-        <section class="landing-cta" aria-labelledby="cta-title"><div class="landing-container landing-cta-inner"><div><h2 id="cta-title">Ready for smarter water management?</h2><p>Create an account to explore AquaFlow's early preview while the water management tools are being built.</p></div><div class="landing-cta-actions">@auth<a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>@else<a class="landing-button landing-button-white" href="{{ route('register') }}">Get started with AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a><a href="{{ route('login') }}">Sign in</a>@endauth</div></div></section>
+        <section class="landing-cta" aria-labelledby="cta-title"><div class="landing-container landing-cta-inner"><div><h2 id="cta-title">Ready for smarter water management?</h2><p>Ask your provider or AquaFlow administrator for access to your account.</p></div><div class="landing-cta-actions">@auth<a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>@else<a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in to AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a><a href="{{ route('login') }}">Sign in</a>@endauth</div></div></section>
     </main>
 
     <footer class="landing-footer">
@@ -195,9 +190,6 @@
                     <a href="{{ route('dashboard') }}">Dashboard</a>
                 @else
                     <a href="{{ route('login') }}">Sign in</a>
-                    @if (Route::has('register'))
-                        <a href="{{ route('register') }}">Create account</a>
-                    @endif
                 @endauth
             </nav>
         </div>

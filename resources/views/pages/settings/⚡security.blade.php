@@ -85,6 +85,7 @@ new #[Title('Security settings')] class extends Component {
 
         $this->reset('current_password', 'password', 'password_confirmation');
 
+        Flux::modal('update-password')->close();
         Flux::toast(variant: 'success', text: __('Password updated.'));
     }
 
@@ -172,40 +173,57 @@ new #[Title('Security settings')] class extends Component {
     <flux:heading level="2" class="sr-only">{{ __('Security settings') }}</flux:heading>
 
     <x-pages::settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
-        <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
-            <flux:input
-                wire:model="current_password"
-                :label="__('Current password')"
-                type="password"
-                required
-                autocomplete="current-password"
-                viewable
-            />
-            <flux:input
-                wire:model="password"
-                :label="__('New password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
-                viewable
-            />
-            <flux:input
-                wire:model="password_confirmation"
-                :label="__('Confirm password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
-                viewable
-            />
-
-            <div class="flex items-center gap-4">
-                <flux:button variant="primary" type="submit" data-test="update-password-button">
-                    {{ __('Save') }}
-                </flux:button>
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+            <div>
+                <flux:heading>{{ __('Password') }}</flux:heading>
+                <flux:text class="mt-1">{{ __('Change your password to keep your account secure.') }}</flux:text>
             </div>
-        </form>
+            <flux:modal.trigger name="update-password">
+                <flux:button icon="pencil-square">{{ __('Update password') }}</flux:button>
+            </flux:modal.trigger>
+        </div>
+
+        <flux:modal name="update-password" :show="$errors->has('current_password') || $errors->has('password') || $errors->has('password_confirmation')" class="w-full max-w-lg">
+            <form method="POST" wire:submit="updatePassword" class="space-y-6">
+                <div>
+                    <flux:heading size="lg">{{ __('Update password') }}</flux:heading>
+                    <flux:text class="mt-2">{{ __('Enter your current password and choose a new one.') }}</flux:text>
+                </div>
+                <flux:input
+                    wire:model="current_password"
+                    :label="__('Current password')"
+                    type="password"
+                    required
+                    autocomplete="current-password"
+                    viewable
+                />
+                <flux:input
+                    wire:model="password"
+                    :label="__('New password')"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
+                    viewable
+                />
+                <flux:input
+                    wire:model="password_confirmation"
+                    :label="__('Confirm password')"
+                    type="password"
+                    required
+                    autocomplete="new-password"
+                    passwordrules="{{ \Illuminate\Validation\Rules\Password::defaults()->toPasswordRulesString() }}"
+                    viewable
+                />
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="primary" type="submit" data-test="update-password-button">{{ __('Save') }}</flux:button>
+                </div>
+            </form>
+        </flux:modal>
 
         @if ($canManageTwoFactor)
             <section class="mt-12">
