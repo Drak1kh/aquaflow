@@ -13,8 +13,8 @@
             @csrf
             <input type="hidden" name="_form" value="adjust-{{ $bill->id }}">
             <flux:select name="type" label="Adjustment type"><option value="credit" @selected(old('_form') !== 'adjust-'.$bill->id || old('type') === 'credit')>Credit (reduce charge)</option><option value="debit" @selected(old('_form') === 'adjust-'.$bill->id && old('type') === 'debit')>Debit (increase charge)</option></flux:select>
-            <flux:input :value="old('_form') === 'adjust-'.$bill->id ? old('amount') : null" name="amount" label="Amount (PHP)" type="number" step="0.01" min="0.01" required />
-            <flux:textarea name="reason" label="Approval reason" required>{{ old('_form') === 'adjust-'.$bill->id ? old('reason') : '' }}</flux:textarea>
+            <flux:input placeholder="e.g. 250.00" :value="old('_form') === 'adjust-'.$bill->id ? old('amount') : null" name="amount" label="Amount (PHP)" type="number" step="0.01" min="0.01" required />
+            <flux:textarea placeholder="Explain the approved billing correction" name="reason" label="Approval reason" required>{{ old('_form') === 'adjust-'.$bill->id ? old('reason') : '' }}</flux:textarea>
             <flux:button type="submit" variant="primary">Approve and apply adjustment</flux:button>
         </form>
         </details>

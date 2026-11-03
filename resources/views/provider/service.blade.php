@@ -3,7 +3,7 @@
 <x-page-header title="Disconnection & Reconnection" description="Issue notices for overdue accounts and record service restoration after balances are cleared." />
 
 <flux:button :href="route('provider.balances.index')">View outstanding balances</flux:button>
-<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input name="search" label="Consumer or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
+<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
 @forelse ($connections as $connection)
     <flux:card class="space-y-4">
         <flux:heading level="2">{{ $connection->consumer->name }} · {{ $connection->meter_number }}</flux:heading>
@@ -17,7 +17,7 @@
                     <option value="{{ $action }}">{{ ['notice' => 'Record disconnection notice', 'disconnect' => 'Record disconnection', 'request_reconnection' => 'Request reconnection', 'restore' => 'Complete service restoration'][$action] }}</option>
                 @endforeach
             </flux:select>
-            <flux:textarea name="reason" label="Reason / notice details" rows="2" required>{{ old('_form') === 'service-'.$connection->id ? old('reason') : '' }}</flux:textarea>
+            <flux:textarea placeholder="Enter the notice, request, or restoration details" name="reason" label="Reason / notice details" rows="2" required>{{ old('_form') === 'service-'.$connection->id ? old('reason') : '' }}</flux:textarea>
             <flux:button type="submit">Record action</flux:button>
         </form>
         @else

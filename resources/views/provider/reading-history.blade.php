@@ -1,8 +1,8 @@
 <section class="space-y-4">
     <flux:heading level="2" size="lg">Meter reading history</flux:heading>
     <form method="GET" class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <flux:input type="month" name="period" label="Reading month" :value="request('period')" />
-        <flux:input name="search" label="Consumer name or account" :value="request('search')" />
+        <flux:input placeholder="Select a reading month" type="month" name="period" label="Reading month" :value="request('period')" />
+        <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer name or account" :value="request('search')" />
         <flux:button type="submit">Filter connections and history</flux:button>
     </form>
     @forelse ($history as $reading)
@@ -13,7 +13,7 @@
                 <form method="POST" action="{{ route('provider.readings.update', $reading) }}" class="flex flex-col gap-3 sm:flex-row sm:items-end">
                     @csrf @method('PUT')
                     <input type="hidden" name="_form" value="correct-{{ $reading->id }}">
-                    <flux:input name="current_reading" type="number" step="0.001" min="0" :value="old('_form') === 'correct-'.$reading->id ? old('current_reading') : $reading->current_reading" label="Correct current reading" required />
+                    <flux:input placeholder="e.g. 115.500" name="current_reading" type="number" step="0.001" min="0" :value="old('_form') === 'correct-'.$reading->id ? old('current_reading') : $reading->current_reading" label="Correct current reading" required />
                     <flux:button type="submit">Save correction</flux:button>
                 </form>
             @else

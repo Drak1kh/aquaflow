@@ -7,7 +7,7 @@
             <form method="POST" action="{{ route('provider.profile') }}" class="space-y-4">
                 @csrf @method('PUT')
                 @foreach (['name' => ['Provider name', 'text'], 'address' => ['Office address', 'text'], 'phone' => ['Contact number', 'tel'], 'email' => ['Contact email', 'email'], 'due_days' => ['Due days after month end', 'number'], 'grace_days' => ['Grace period (days)', 'number'], 'late_fee' => ['Late fee (PHP)', 'number']] as $field => [$label, $type])
-                    <flux:input :name="$field" :value="old($field, $provider->$field)" :label="$label" :type="$type" :min="$type === 'number' ? 0 : null" :step="$field === 'late_fee' ? '0.01' : ($type === 'number' ? '1' : null)" :required="in_array($field, ['name', 'due_days'])" />
+                    <flux:input :placeholder="match ($field) { 'name' => 'Enter the provider name', 'address' => 'Enter the office address', 'phone' => 'e.g. 09123456789', 'email' => 'e.g. office@example.com', 'due_days' => 'e.g. 14', 'grace_days' => 'e.g. 7', 'late_fee' => 'e.g. 20.00' }" :name="$field" :value="old($field, $provider->$field)" :label="$label" :type="$type" :min="$type === 'number' ? 0 : null" :step="$field === 'late_fee' ? '0.01' : ($type === 'number' ? '1' : null)" :required="in_array($field, ['name', 'due_days'])" />
                 @endforeach
                 <flux:text>Due days are counted after the end of the billing month. Water rates are configured under Billing.</flux:text>
                 <flux:button type="submit" variant="primary">Save settings</flux:button>
@@ -15,10 +15,10 @@
         @else
             @if ($section === 'balances')<flux:button :href="route('provider.service.index')">Disconnection &amp; Reconnection</flux:button>@endif
             <form method="GET" class="flex flex-wrap items-end gap-3">
-                <flux:input type="month" name="month" label="Billing month" :value="request('month')" />
-                <flux:input name="search" label="Consumer name or account" :value="request('search')" />
-                <flux:input name="from" type="date" label="From" :value="request('from')" />
-                <flux:input name="to" type="date" label="To" :value="request('to')" />
+                <flux:input placeholder="Select a billing month" type="month" name="month" label="Billing month" :value="request('month')" />
+                <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer name or account" :value="request('search')" />
+                <flux:input placeholder="Start date" name="from" type="date" label="From" :value="request('from')" />
+                <flux:input placeholder="End date" name="to" type="date" label="To" :value="request('to')" />
                 @if ($section === 'balances')
                     <flux:select name="overdue" label="Balance status"><option value="0">All unpaid</option><option value="1" @selected(request('overdue') === '1')>Overdue only</option></flux:select>
                 @endif

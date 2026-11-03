@@ -4,8 +4,8 @@
 
 <form method="GET" class="flex flex-wrap items-end gap-3">
     <flux:select name="group" label="Summary period">@foreach (['daily', 'monthly', 'yearly'] as $value)<option value="{{ $value }}" @selected($group === $value)>{{ ucfirst($value) }}</option>@endforeach</flux:select>
-    <flux:input name="from" type="date" label="From" :value="request('from')" />
-    <flux:input name="to" type="date" label="To" :value="request('to')" />
+    <flux:input placeholder="Start date" name="from" type="date" label="From" :value="request('from')" />
+    <flux:input placeholder="End date" name="to" type="date" label="To" :value="request('to')" />
     <flux:button type="submit">Generate report</flux:button>
 </form>
 <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th scope="col" class="p-3">Period</th><th scope="col" class="p-3">Bills generated</th><th scope="col" class="p-3">Total charges</th></tr></thead><tbody>

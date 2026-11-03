@@ -2,7 +2,7 @@
 <div class="provider-page w-full min-w-0 space-y-6">
 <x-page-header title="Payment Management" />
 
-<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
+<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
         @can('permission', 'payments.view')
             <section id="payments" class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -51,14 +51,14 @@
                                 @endforeach
                             </flux:select>
                             <a x-cloak x-show="billUrls[selectedBill]" x-bind:href="billUrls[selectedBill]" class="self-end py-2">View selected bill</a>
-                            <flux:input name="reference" :value="old('_form') === 'create-payment' ? old('reference') : null" :label="__('Reference')" required />
-                            <flux:input name="amount" type="number" step="0.01" min="0.01" :value="old('_form') === 'create-payment' ? old('amount') : null" :label="__('Amount (PHP)')" required />
+                            <flux:input placeholder="Enter the receipt or transaction reference" name="reference" :value="old('_form') === 'create-payment' ? old('reference') : null" :label="__('Reference')" required />
+                            <flux:input placeholder="e.g. 250.00" name="amount" type="number" step="0.01" min="0.01" :value="old('_form') === 'create-payment' ? old('amount') : null" :label="__('Amount (PHP)')" required />
                             <flux:select name="method" :label="__('Method')">
                                 @foreach (['cash', 'bank_transfer', 'e_wallet', 'other'] as $method)
                                     <option value="{{ $method }}" @selected(old('_form') === 'create-payment' && old('method') === $method)>{{ ucfirst(str_replace('_', ' ', $method)) }}</option>
                                 @endforeach
                             </flux:select>
-                            <flux:input name="paid_at" type="date" :value="old('_form') === 'create-payment' ? old('paid_at') : null" :label="__('Payment date')" required />
+                            <flux:input placeholder="Select the payment date" name="paid_at" type="date" :value="old('_form') === 'create-payment' ? old('paid_at') : null" :label="__('Payment date')" required />
                             <flux:input name="proof" type="file" accept=".pdf,.jpg,.jpeg,.png" description="PDF, JPG or PNG, up to 5 MB." :label="__('Proof (optional)')" />
                         </div>
                     </x-form-modal>
@@ -66,7 +66,7 @@
                 @can('permission', 'payments.verify')
                     @foreach ($selectedPayment && $selectedPayment->status === 'pending' ? [$selectedPayment] : [] as $payment)
                         <x-form-modal :open="true" :name="'reject-payment-'.$payment->id" :title="__('Reject payment')" :description="$payment->reference" :action="route('provider.payments.reject', $payment)" :submit-label="__('Reject payment')" variant="danger">
-                            <flux:textarea name="remarks" :label="__('Reason for rejection')" required>{{ old('_form') === 'reject-payment-'.$payment->id ? old('remarks') : '' }}</flux:textarea>
+                            <flux:textarea placeholder="Explain why this payment is being rejected" name="remarks" :label="__('Reason for rejection')" required>{{ old('_form') === 'reject-payment-'.$payment->id ? old('remarks') : '' }}</flux:textarea>
                         </x-form-modal>
                     @endforeach
                 @endcan

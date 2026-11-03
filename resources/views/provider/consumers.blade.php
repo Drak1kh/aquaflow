@@ -2,7 +2,7 @@
 <div class="provider-page w-full min-w-0 space-y-6">
 <x-page-header title="Consumer Management" />
 
-<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
+<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
         @can('permission', 'consumers.view')
             <section id="consumers" class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -48,27 +48,27 @@
                 @can('permission', 'consumers.manage')
                     <x-form-modal name="create-consumer" :title="__('Register consumer')" :action="route('provider.consumers.store')" :submit-label="__('Register consumer')">
                         <div class="grid gap-4 sm:grid-cols-2">
-                            <flux:input name="account_number" :value="old('_form') === 'create-consumer' ? old('account_number') : null" :label="__('Account number (leave blank to generate)')" />
-                            <flux:input name="name" :value="old('_form') === 'create-consumer' ? old('name') : null" :label="__('Full name')" required />
-                            <flux:input name="email" type="email" :value="old('_form') === 'create-consumer' ? old('email') : null" :label="__('Email')" />
-                            <flux:input name="phone" :value="old('_form') === 'create-consumer' ? old('phone') : null" :label="__('Phone')" />
-                            <div class="sm:col-span-2"><flux:input name="address" :value="old('_form') === 'create-consumer' ? old('address') : null" :label="__('Service address')" required /></div>
+                            <flux:input placeholder="Leave blank to generate automatically" name="account_number" :value="old('_form') === 'create-consumer' ? old('account_number') : null" :label="__('Account number (leave blank to generate)')" />
+                            <flux:input placeholder="Enter the full name" name="name" :value="old('_form') === 'create-consumer' ? old('name') : null" :label="__('Full name')" required />
+                            <flux:input placeholder="e.g. consumer@example.com" name="email" type="email" :value="old('_form') === 'create-consumer' ? old('email') : null" :label="__('Email')" />
+                            <flux:input placeholder="e.g. 09123456789" name="phone" :value="old('_form') === 'create-consumer' ? old('phone') : null" :label="__('Phone')" />
+                            <div class="sm:col-span-2"><flux:input placeholder="House number, street, barangay, city" name="address" :value="old('_form') === 'create-consumer' ? old('address') : null" :label="__('Service address')" required /></div>
                         </div>
                     </x-form-modal>
                     @foreach ($selectedConsumer && request('edit_consumer') ? [$selectedConsumer] : [] as $consumer)
                         <x-form-modal :open="true" :name="'edit-consumer-'.$consumer->id" title="Edit consumer" :action="route('provider.consumers.update', $consumer)" method="PUT" submit-label="Save">
-                            <flux:input name="account_number" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('account_number') : $consumer->account_number" label="Account number" required />
-                            <flux:input name="name" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('name') : $consumer->name" label="Name" required />
-                            <flux:input name="phone" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('phone') : $consumer->phone" label="Phone" />
-                            <flux:input name="email" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('email') : $consumer->email" label="Email" type="email" />
-                            <flux:input name="address" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('address') : $consumer->address" label="Service address" required />
+                            <flux:input placeholder="e.g. C-000123" name="account_number" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('account_number') : $consumer->account_number" label="Account number" required />
+                            <flux:input placeholder="Enter the full name" name="name" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('name') : $consumer->name" label="Name" required />
+                            <flux:input placeholder="e.g. 09123456789" name="phone" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('phone') : $consumer->phone" label="Phone" />
+                            <flux:input placeholder="e.g. consumer@example.com" name="email" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('email') : $consumer->email" label="Email" type="email" />
+                            <flux:input placeholder="House number, street, barangay, city" name="address" :value="old('_form') === 'edit-consumer-'.$consumer->id ? old('address') : $consumer->address" label="Service address" required />
                         </x-form-modal>
                     @endforeach
                     @foreach ($selectedConsumer && request('portal_consumer') && !$selectedConsumer->portalUser ? [$selectedConsumer] : [] as $consumer)
                         <x-form-modal :open="true" :name="'activate-portal-'.$consumer->id" :title="__('Activate portal access')" :description="$consumer->name.' · '.$consumer->account_number" :action="route('provider.consumers.portal', $consumer)" :submit-label="__('Activate portal')">
                             <div class="space-y-4">
-                                <flux:input name="email" type="email" :value="old('_form') === 'activate-portal-'.$consumer->id ? old('email') : $consumer->email" :label="__('Login email')" required />
-                                <flux:input name="password" type="password" :label="__('Temporary password')" required autocomplete="new-password" />
+                                <flux:input placeholder="e.g. consumer@example.com" name="email" type="email" :value="old('_form') === 'activate-portal-'.$consumer->id ? old('email') : $consumer->email" :label="__('Login email')" required />
+                                <flux:input placeholder="Enter a temporary password (at least 12 characters)" name="password" type="password" :label="__('Temporary password')" required autocomplete="new-password" />
                             </div>
                         </x-form-modal>
                     @endforeach
