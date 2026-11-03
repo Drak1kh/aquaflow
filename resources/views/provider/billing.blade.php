@@ -54,7 +54,7 @@
                         <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">{{ __('Bill') }}</th><th scope="col" class="px-4 py-3">{{ __('Consumer') }}</th><th scope="col" class="px-4 py-3">{{ __('Month') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Total') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Balance') }}</th></tr></thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @forelse ($bills as $bill)
-                                <tr><td class="px-4 py-3"><a href="{{ route('bills.print', $bill) }}">{{ $bill->number }} · {{ $bill->paymentStatus() }}</a></td><td class="px-4 py-3">{{ $bill->consumer->name }}</td><td class="px-4 py-3">{{ $bill->period_month->format('M Y') }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->total, 2) }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->balance(), 2) }}</td></tr>
+                                <tr><td class="px-4 py-3"><a href="{{ route('bills.print', $bill) }}" data-document-preview>{{ $bill->number }} · {{ $bill->paymentStatus() }}</a></td><td class="px-4 py-3">{{ $bill->consumer->name }}</td><td class="px-4 py-3">{{ $bill->period_month->format('M Y') }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->total, 2) }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->balance(), 2) }}</td></tr>
                             @empty
                                 <tr><td colspan="5" class="px-4 py-8 text-center">{{ __('No bills generated yet.') }}</td></tr>
                             @endforelse

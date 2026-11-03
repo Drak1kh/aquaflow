@@ -35,7 +35,7 @@
             <flux:heading level="2">Outstanding: ₱{{ bcadd((string) $outstanding, '0', 2) }}</flux:heading>
             @foreach ($bills as $bill)
                 @if ($section === 'reports' || bccomp($bill->balance(), '0', 2) > 0)
-                    <flux:card><a href="{{ route('bills.print', $bill) }}">{{ $bill->consumer->name }} · {{ $bill->number }}</a><flux:text>{{ $bill->paymentStatus() }} · Due {{ $bill->due_at->format('M d, Y') }} · ₱{{ $bill->balance() }} remaining · Penalty ₱{{ $bill->late_fee }}</flux:text>
+                    <flux:card><a href="{{ route('bills.print', $bill) }}" data-document-preview>{{ $bill->consumer->name }} · {{ $bill->number }}</a><flux:text>{{ $bill->paymentStatus() }} · Due {{ $bill->due_at->format('M d, Y') }} · ₱{{ $bill->balance() }} remaining · Penalty ₱{{ $bill->late_fee }}</flux:text>
                     @if ($section === 'balances' && !$bill->late_fee_applied_at && bccomp($lateFee, '0', 2) > 0 && $bill->due_at->copy()->addDays($graceDays)->isBefore(today()))
                         <form method="POST" action="{{ route('provider.bills.penalty', $bill) }}">@csrf<flux:button type="submit">Apply eligible penalty</flux:button></form>
                     @elseif ($section === 'balances')

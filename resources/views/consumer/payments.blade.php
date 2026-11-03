@@ -20,7 +20,7 @@
     @if($payment->status === 'rejected')<flux:text>Reason: {{ $payment->remarks }}</flux:text>@endif
     <div class="flex flex-wrap gap-3">
         @if($payment->proof_path)<flux:button :href="route('portal.payments.proof', $payment)">View submitted proof</flux:button>@endif
-        @if($payment->status === 'verified')<flux:button :href="route('payments.print', $payment)">Print receipt</flux:button>@endif
+        @if($payment->status === 'verified')<flux:button :href="route('payments.print', $payment)" data-document-preview>Print receipt</flux:button>@endif
     </div>
 </article>
 @empty <flux:text>No payments match this filter.</flux:text> @endforelse

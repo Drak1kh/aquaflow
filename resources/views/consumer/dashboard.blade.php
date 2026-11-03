@@ -22,7 +22,7 @@
 @can('billing.view')
 <section class="space-y-3"><flux:heading level="2" size="lg">This month’s bills</flux:heading>
 @forelse ($currentBills as $bill)
-    <flux:card><flux:link :href="route('bills.print', $bill)">{{ $bill->number }}</flux:link><flux:text>{{ $bill->consumption }} m³ · {{ $bill->paymentStatus() }} · ₱{{ $bill->balance() }} remaining · Due {{ $bill->due_at->format('M d, Y') }}</flux:text></flux:card>
+    <flux:card><flux:link :href="route('bills.print', $bill)" data-document-preview>{{ $bill->number }}</flux:link><flux:text>{{ $bill->consumption }} m³ · {{ $bill->paymentStatus() }} · ₱{{ $bill->balance() }} remaining · Due {{ $bill->due_at->format('M d, Y') }}</flux:text></flux:card>
 @empty <flux:text>Your provider has not generated a bill for the current month.</flux:text> @endforelse
 </section>
 @endcan

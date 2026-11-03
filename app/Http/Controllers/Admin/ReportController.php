@@ -47,7 +47,12 @@ class ReportController extends Controller
     {
         $filters = $this->filters($request);
 
-        return view('admin.report-print', ['filters' => $filters, 'headers' => self::HEADERS[$filters['type']], 'rows' => collect($this->rows($filters))]);
+        return view('admin.report-print', [
+            'filters' => $filters,
+            'headers' => self::HEADERS[$filters['type']],
+            'rows' => collect($this->rows($filters)),
+            'providerName' => $filters['provider'] ? WaterProvider::findOrFail($filters['provider'])->name : null,
+        ]);
     }
 
     public function csv(Request $request): StreamedResponse

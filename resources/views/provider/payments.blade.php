@@ -17,7 +17,7 @@
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @forelse ($payments as $payment)
                                 <tr>
-                                    <td class="px-4 py-3">{{ $payment->reference }} @if ($payment->proof_path)<a href="{{ route('payments.proof', $payment) }}">Proof</a>@endif @if ($payment->status === 'verified')<a href="{{ route('payments.print', $payment) }}">Receipt</a>@endif</td>
+                                    <td class="px-4 py-3">{{ $payment->reference }} @if ($payment->proof_path)<a href="{{ route('payments.proof', $payment) }}">Proof</a>@endif @if ($payment->status === 'verified')<a href="{{ route('payments.print', $payment) }}" data-document-preview>Receipt</a>@endif</td>
                                     <td class="px-4 py-3">{{ $payment->consumer->name }}</td>
                                     <td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $payment->amount, 2) }}</td>
                                     <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
@@ -50,7 +50,7 @@
                                     <option value="{{ $bill->id }}" @selected(old('_form') === 'create-payment' && old('bill_id') == $bill->id)>{{ $bill->number }} · {{ $bill->consumer->name }} · ₱{{ bcsub($bill->total, (string) ($bill->allocations_sum_amount ?? '0'), 2) }} remaining</option>
                                 @endforeach
                             </flux:select>
-                            <a x-cloak x-show="billUrls[selectedBill]" x-bind:href="billUrls[selectedBill]" class="self-end py-2">View selected bill</a>
+                            <a data-document-preview x-cloak x-show="billUrls[selectedBill]" x-bind:href="billUrls[selectedBill]" class="self-end py-2">View selected bill</a>
                             <flux:input placeholder="Enter the receipt or transaction reference" name="reference" :value="old('_form') === 'create-payment' ? old('reference') : null" :label="__('Reference')" required />
                             <flux:input placeholder="e.g. 250.00" name="amount" type="number" step="0.01" min="0.01" :value="old('_form') === 'create-payment' ? old('amount') : null" :label="__('Amount (PHP)')" required />
                             <flux:select name="method" :label="__('Method')">

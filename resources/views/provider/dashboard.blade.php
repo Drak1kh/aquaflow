@@ -12,7 +12,7 @@
     <flux:card><flux:heading level="2">Unpaid bills</flux:heading><flux:text>{{ $unpaidCount }}</flux:text></flux:card>
     <flux:heading level="2" size="lg">Recent billing activity</flux:heading>
     @forelse ($bills->take(5) as $bill)
-        <flux:text><a href="{{ route('bills.print', $bill) }}">{{ $bill->number }}</a> · {{ $bill->consumer->name }} · ₱{{ $bill->total }} · {{ $bill->paymentStatus() }}</flux:text>
+        <flux:text><a href="{{ route('bills.print', $bill) }}" data-document-preview>{{ $bill->number }}</a> · {{ $bill->consumer->name }} · ₱{{ $bill->total }} · {{ $bill->paymentStatus() }}</flux:text>
     @empty <flux:text>No bills generated yet.</flux:text> @endforelse
     <flux:heading level="2" size="lg">Recent payments</flux:heading>
     @forelse ($payments->take(5) as $payment)

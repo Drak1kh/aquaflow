@@ -4,4 +4,5 @@
         <x-session-feedback />
         {{ $slot }}
     </flux:main>
+    <x-document-preview />
 </x-layouts::app.sidebar>
