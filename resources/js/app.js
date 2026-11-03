@@ -1,4 +1,5 @@
 import './page-loading.js';
+import './docs.js';
 
 const landingPage = document.querySelector('body.landing');
 

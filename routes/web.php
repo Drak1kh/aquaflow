@@ -15,11 +15,13 @@ use App\Http\Controllers\MvpController;
 use App\Http\Controllers\PasswordChangeController;
 use App\Http\Controllers\Provider\ModuleController;
 use App\Http\Controllers\Provider\OperationsController;
+use App\Http\Middleware\EnsureAccountReady;
 use App\Http\Middleware\EnsureProviderContext;
 use App\UserRole;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
+Route::view('/docs', 'docs')->withoutMiddleware(EnsureAccountReady::class)->name('docs');
 
 Route::middleware('auth')->group(function () {
     Route::livewire('portal/settings', 'pages::settings.profile')->middleware('can:access-consumer')->name('portal.settings');
