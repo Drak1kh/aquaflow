@@ -27,6 +27,12 @@ class Connection extends Model
         return $this->belongsTo(Consumer::class);
     }
 
+    /** @return HasOne<MeterReading, $this> */
+    public function latestReading(): HasOne
+    {
+        return $this->hasOne(MeterReading::class)->latestOfMany('period_month');
+    }
+
     /** @return HasOne<ServiceEvent, $this> */
     public function latestServiceEvent(): HasOne
     {

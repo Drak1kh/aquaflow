@@ -10,7 +10,6 @@ use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\MeterReading;
 use App\Models\Payment;
-use App\Models\SupportTicket;
 use App\Models\WaterProvider;
 use App\UserRole;
 use Carbon\CarbonImmutable;
@@ -135,27 +134,9 @@ class MvpController extends Controller
         return back()->with('status', 'Reading corrected.');
     }
 
-    public function portal(Request $request, string $section): View
-    {
-        abort_unless(in_array($section, ['account', 'connection', 'bills', 'payments', 'support'], true), 404);
-        $consumer = $request->user()->consumer;
-        Gate::authorize(match ($section) {
-            'bills' => 'billing.view', 'payments' => 'payments.view', 'support' => 'tickets.view', default => 'access-consumer'
-        });
-        if ($section === 'support') {
-            return view('consumer.support', ['consumer' => $consumer, 'tickets' => SupportTicket::where('consumer_id', $consumer->id)->latest('id')->paginate(20)]);
-        }
-
-        return view('consumer.details', [
-            'section' => $section, 'consumer' => $consumer,
-            'connections' => Connection::with(['readings' => fn ($q) => $q->latest('period_month')])->where('consumer_id', $consumer->id)->get(),
-            'bills' => Bill::with('allocations')->where('consumer_id', $consumer->id)->latest('period_month')->get(),
-            'payments' => Payment::where('consumer_id', $consumer->id)->latest('paid_at')->get(),
-        ]);
-    }
-
     public function submitPayment(Request $request, AuditLogger $audit): RedirectResponse
     {
+        Gate::authorize('payments.view');
         $consumer = $request->user()->consumer;
         $data = $request->validate([
             'bill_id' => ['required', Rule::exists('bills', 'id')->where('consumer_id', $consumer->id)],

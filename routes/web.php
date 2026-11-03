@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Consumer\PortalController as ClientPortalController;
 use App\Http\Controllers\Consumer\TicketController as ConsumerTicketController;
 use App\Http\Controllers\MvpController;
 use App\Http\Controllers\PasswordChangeController;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware('auth')->group(function () {
+    Route::livewire('portal/settings', 'pages::settings.profile')->middleware('can:access-consumer')->name('portal.settings');
     Route::get('password/change', [PasswordChangeController::class, 'edit'])->name('password.change');
     Route::post('password/change', [PasswordChangeController::class, 'update'])->name('password.change.store');
 });
@@ -36,7 +38,7 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
 
     Route::get('dashboard/admin', AdminDashboardController::class)->middleware('can:access-super-admin')->name('dashboard.admin');
     Route::get('dashboard/provider', [OperationsController::class, 'index'])->middleware('can:access-water-provider')->name('dashboard.provider');
-    Route::get('dashboard/consumer', [ConsumerTicketController::class, 'index'])->middleware('can:access-consumer')->name('dashboard.consumer');
+    Route::get('dashboard/consumer', [ClientPortalController::class, 'dashboard'])->middleware('can:access-consumer')->name('dashboard.consumer');
 
     Route::prefix('admin')->name('admin.')->middleware('can:access-super-admin')->group(function () {
         Route::get('providers', [AdminProviderController::class, 'index'])->name('providers.index');
@@ -69,6 +71,9 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
     });
 
     Route::prefix('portal')->name('portal.')->middleware('can:access-consumer')->group(function () {
+        Route::patch('notifications/read-all', [ClientPortalController::class, 'readAllNotices'])->middleware('can:notifications.view')->name('notifications.read-all');
+        Route::patch('notifications/{notice}/read', [ClientPortalController::class, 'readNotice'])->middleware('can:notifications.view')->name('notifications.read');
+        Route::get('payments/{payment}/proof', [ClientPortalController::class, 'proof'])->middleware('can:payments.view')->name('payments.proof');
         Route::post('tickets', [ConsumerTicketController::class, 'store'])->middleware('can:tickets.create')->name('tickets.store');
         Route::get('tickets/{ticket}', [ConsumerTicketController::class, 'show'])->middleware('can:tickets.view')->name('tickets.show');
         Route::post('tickets/{ticket}/reply', [ConsumerTicketController::class, 'reply'])->middleware('can:tickets.respond')->name('tickets.reply');
@@ -80,7 +85,7 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
     Route::put('provider/profile', [MvpController::class, 'providerSettings'])->middleware('can:provider.settings.manage')->name('provider.profile');
     Route::put('provider/consumers/{consumer}', [MvpController::class, 'updateConsumer'])->middleware('can:consumers.manage')->name('provider.consumers.update');
     Route::put('provider/readings/{reading}', [MvpController::class, 'correctReading'])->middleware('can:connections.manage')->name('provider.readings.update');
-    Route::get('portal/{section}', [MvpController::class, 'portal'])->middleware('can:access-consumer')->name('portal.section');
+    Route::get('portal/{section}', [ClientPortalController::class, 'page'])->middleware('can:access-consumer')->name('portal.section');
     Route::post('portal/payments', [MvpController::class, 'submitPayment'])->middleware('can:access-consumer')->name('portal.payments.store');
     Route::get('documents/bills/{bill}', [MvpController::class, 'bill'])->name('bills.print');
     Route::get('documents/payments/{payment}', [MvpController::class, 'receipt'])->name('payments.print');

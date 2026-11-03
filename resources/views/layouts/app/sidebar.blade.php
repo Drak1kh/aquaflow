@@ -73,10 +73,12 @@
                 @elseif (auth()->user()->role !== \App\UserRole::Consumer)
                     @include('partials.provider-navigation')
                 @else
-                    @foreach (['account' => 'My Account', 'connection' => 'My Connection', 'bills' => 'My Bills', 'payments' => 'Payments', 'support' => 'Help & Support'] as $section => $label)
-                        <flux:sidebar.item :href="route('portal.section', $section)">{{ __($label) }}</flux:sidebar.item>
+                    @foreach (['account' => ['My Account', 'identification'], 'connection' => ['My Connection', 'arrows-right-left'], 'bills' => ['My Bills', 'document-text'], 'payments' => ['Payments', 'credit-card'], 'notifications' => ['Notifications', 'bell'], 'support' => ['Help & Support', 'lifebuoy']] as $section => [$label, $icon])
+                        @can(match ($section) {'bills' => 'billing.view', 'payments' => 'payments.view', 'notifications' => 'notifications.view', default => 'access-consumer'})
+                            <flux:sidebar.item :icon="$icon" :href="route('portal.section', $section)" :current="request()->routeIs('portal.section') && request()->route('section') === $section" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __($label) }}</flux:sidebar.item>
+                        @endcan
                     @endforeach
-                    <flux:sidebar.item :href="route('profile.edit')">Settings</flux:sidebar.item>
+                    <flux:sidebar.item icon="cog-6-tooth" :href="route('portal.settings')" :current="request()->routeIs('portal.settings')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Settings</flux:sidebar.item>
                 @endif
 
             </flux:sidebar.nav>
@@ -91,6 +93,8 @@
 
         @php
             $pageTitle = match (request()->route()?->getName()) {
+                'portal.settings' => __('Client Settings'),
+                'portal.section' => match (request()->route('section')) {'account' => __('My Account'), 'connection' => __('My Connection'), 'bills' => __('My Bills'), 'payments' => __('Payments'), 'notifications' => __('Notifications'), 'support' => __('Help & Support'), default => __('Client Portal')},
                 'profile.edit' => __('Profile'),
                 'security.edit' => __('Security'),
                 'appearance.edit' => __('Appearance'),
@@ -135,6 +139,9 @@
                 <flux:button class="min-h-11 min-w-11" variant="ghost" size="sm" icon="moon" icon:variant="outline" aria-label="{{ __('Toggle appearance') }}" x-data x-on:click="$flux.appearance = $flux.appearance === 'dark' ? 'light' : 'dark'" />
             </flux:tooltip>
 
+            @if (auth()->user()->role === \App\UserRole::Consumer)
+                @can('notifications.view')<flux:button :href="route('portal.section', 'notifications')" class="min-h-11 min-w-11" variant="ghost" icon="bell" aria-label="Notifications" />@endcan
+            @else
             <flux:dropdown position="bottom" align="end">
                 <flux:button class="min-h-11 min-w-11" variant="ghost" size="sm" icon="bell" icon:variant="outline" aria-label="{{ __('Notifications') }}" />
 
@@ -142,6 +149,7 @@
                     <div class="px-3 py-2 text-sm text-zinc-500 dark:text-white/80">{{ __('No notifications yet') }}</div>
                 </flux:menu>
             </flux:dropdown>
+            @endif
 
             <flux:dropdown position="bottom" align="end">
                 <flux:profile

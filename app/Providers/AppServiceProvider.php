@@ -4,7 +4,13 @@ namespace App\Providers;
 
 use App\Actions\PermissionRegistry;
 use App\Actions\PlatformSettings;
+use App\Models\Bill;
+use App\Models\Payment;
+use App\Models\ServiceEvent;
+use App\Models\SupportTicket;
+use App\Models\TicketMessage;
 use App\Models\User;
+use App\Observers\ClientNoticeObserver;
 use App\UserRole;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -29,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        foreach ([User::class, Bill::class, Payment::class, ServiceEvent::class, SupportTicket::class, TicketMessage::class] as $model) {
+            $model::observe(ClientNoticeObserver::class);
+        }
 
         Gate::define('access-super-admin', fn (User $user): bool => $user->hasRole(UserRole::SuperAdmin));
         Gate::define('access-water-provider', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Staff], true));

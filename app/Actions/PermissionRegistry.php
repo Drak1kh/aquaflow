@@ -17,6 +17,7 @@ class PermissionRegistry
         'payments.verify' => 'Verify payments',
         'reports.view' => 'View provider reports',
         'provider.settings.manage' => 'Update provider profile and billing settings',
+        'notifications.view' => 'View client notifications',
         'tickets.view' => 'View support tickets',
         'tickets.create' => 'Submit support tickets',
         'tickets.respond' => 'Respond and escalate tickets',
@@ -29,6 +30,6 @@ class PermissionRegistry
             'billing.view', 'billing.manage', 'payments.view', 'payments.manage', 'payments.verify',
             'tickets.view', 'tickets.respond', 'reports.view', 'provider.settings.manage',
         ],
-        'consumer' => ['billing.view', 'payments.view', 'tickets.view', 'tickets.create', 'tickets.respond'],
+        'consumer' => ['billing.view', 'payments.view', 'notifications.view', 'tickets.view', 'tickets.create', 'tickets.respond'],
     ];
 }
