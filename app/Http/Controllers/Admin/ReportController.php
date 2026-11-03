@@ -109,8 +109,8 @@ class ReportController extends Controller
                 ->when($provider, fn ($query) => $query->where('water_provider_id', $provider))
                 ->when($from, fn ($query) => $query->whereDate('period_month', '>=', $from))
                 ->when($to, fn ($query) => $query->whereDate('period_month', '<=', $to))
-                ->where('status', '!=', 'void')->latest('id')->get()
-                ->map(fn (Bill $item) => ['Bill' => $item->number, 'Provider' => $item->waterProvider->name, 'Consumer' => $item->consumer->name, 'Month' => $item->period_month->format('Y-m'), 'Billed PHP' => $item->total, 'Balance PHP' => $item->balance(), 'Status' => $item->status]),
+                ->where('status', '!=', 'void')->when($filters['type'] === 'balances', fn ($q) => $q->whereRaw('total > (select coalesce(sum(amount), 0) from payment_allocations where bill_id = bills.id)'))->latest('id')->get()
+                ->map(fn (Bill $item) => ['Bill' => $item->number, 'Provider' => $item->waterProvider->name, 'Consumer' => $item->consumer->name, 'Month' => $item->period_month->format('Y-m'), 'Billed PHP' => $item->total, 'Balance PHP' => $item->balance(), 'Status' => $item->paymentStatus()]),
             'payments' => Payment::with(['waterProvider', 'consumer'])
                 ->when($provider, fn ($query) => $query->where('water_provider_id', $provider))
                 ->when($from, fn ($query) => $query->whereDate('paid_at', '>=', $from))
@@ -131,7 +131,7 @@ class ReportController extends Controller
                     $payments = Payment::where('water_provider_id', $item->id)->where('status', 'verified')
                         ->when($from, fn ($query) => $query->whereDate('paid_at', '>=', $from))
                         ->when($to, fn ($query) => $query->whereDate('paid_at', '<=', $to));
-                    $billed = (string) $bills->sum('total');
+                    $billed = $bills->reduce(fn ($sum, Bill $bill) => bcadd($sum, $bill->total, 2), '0.00');
                     $collected = (string) $payments->sum('amount');
                     $outstanding = $bills->reduce(fn (string $carry, Bill $bill): string => bcadd($carry, $bill->balance(), 2), '0.00');
 

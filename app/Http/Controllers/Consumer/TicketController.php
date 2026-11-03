@@ -22,7 +22,7 @@ class TicketController extends Controller
     {
         $consumerId = $request->user()->consumer_id;
 
-        $bills = Bill::with('allocations')->where('consumer_id', $consumerId)->where('status', '!=', 'void')->latest('period_month')->get();
+        $bills = $request->user()->can('billing.view') ? Bill::with('allocations')->where('consumer_id', $consumerId)->where('status', '!=', 'void')->latest('period_month')->get() : collect();
         $latestReading = MeterReading::whereHas('connection', fn ($q) => $q->where('consumer_id', $consumerId))->latest('period_month')->first();
         $nextBill = $bills->filter(fn ($bill) => bccomp($bill->balance(), '0', 2) > 0)->sortBy('due_at')->first();
 
@@ -32,7 +32,7 @@ class TicketController extends Controller
             'nextBill' => $nextBill,
             'consumer' => $request->user()->consumer,
             'bills' => $bills,
-            'payments' => Payment::where('consumer_id', $consumerId)->latest('id')->get(),
+            'payments' => $request->user()->can('payments.view') ? Payment::where('consumer_id', $consumerId)->latest('id')->get() : collect(),
             'tickets' => SupportTicket::where('consumer_id', $consumerId)->latest('id')->get(),
         ]);
     }

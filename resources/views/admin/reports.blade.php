@@ -7,8 +7,8 @@
 @endforeach</flux:select><flux:input name="from" type="date" :value="$filters['from']" :label="__('From')" /><flux:input name="to" type="date" :value="$filters['to']" :label="__('To')" /><div class="flex items-end"><flux:button type="submit" variant="primary">{{ __('Generate') }}</flux:button></div></form>
         <div class="flex flex-wrap gap-3"><flux:button :href="route('admin.reports.csv', request()->query())" icon="arrow-down-tray">{{ __('Download CSV') }}</flux:button><flux:button :href="route('admin.reports.print', request()->query())" target="_blank" icon="printer">{{ __('Print / save PDF') }}</flux:button></div>
         <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"><table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700">
-<thead class="bg-[#F7FCFE] text-[#062E68] dark:bg-zinc-800 dark:text-white"><tr>
-@foreach ($headers as $heading)<th class="px-5 py-3 whitespace-nowrap">{{ $heading }}</th>
+<thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr>
+@foreach ($headers as $heading)<th scope="col" class="px-5 py-3 whitespace-nowrap">{{ $heading }}</th>
 @endforeach</tr></thead>
 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
 @forelse ($rows as $row)<tr>

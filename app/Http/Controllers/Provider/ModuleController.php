@@ -10,6 +10,7 @@ use App\Models\BillAdjustment;
 use App\Models\Connection;
 use App\Models\MeterReading;
 use App\Models\ServiceEvent;
+use App\Models\SupportTicket;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -20,6 +21,13 @@ use Illuminate\View\View;
 
 class ModuleController extends Controller
 {
+    public function tickets(Request $request): View
+    {
+        $tickets = SupportTicket::with(['consumer', 'messages' => fn ($q) => $q->where('internal', false)])->where('water_provider_id', $request->user()->water_provider_id)->latest('id')->paginate(20)->withQueryString();
+
+        return view('provider.tickets', compact('tickets'));
+    }
+
     public function service(Request $request): View
     {
         $request->validate(['search' => ['nullable', 'string', 'max:255']]);

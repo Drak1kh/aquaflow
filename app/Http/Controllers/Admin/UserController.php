@@ -30,7 +30,7 @@ class UserController extends Controller
         return view('admin.users', [
             'users' => $users,
             'providers' => WaterProvider::orderBy('name')->get(),
-            'consumers' => Consumer::orderBy('name')->get(),
+            'consumers' => Consumer::with('waterProvider')->orderBy('name')->get(),
         ]);
     }
 
@@ -114,7 +114,12 @@ class UserController extends Controller
             'consumer_id' => ['nullable', 'integer', 'exists:consumers,id'],
         ]);
 
-        $data['water_provider_id'] = $request->user()->water_provider_id;
+        if ($data['role'] === UserRole::WaterProvider->value && empty($data['water_provider_id'])) {
+            throw ValidationException::withMessages(['water_provider_id' => 'Choose a provider for this account.']);
+        }
+
+        $data['water_provider_id'] = $data['role'] === UserRole::WaterProvider->value ? ($data['water_provider_id'] ?? null) : null;
+        $data['consumer_id'] = $data['role'] === UserRole::Consumer->value ? ($data['consumer_id'] ?? null) : null;
 
         if ($data['role'] === UserRole::Consumer->value && empty($data['consumer_id'])) {
             throw ValidationException::withMessages(['consumer_id' => 'Choose a consumer record for this account.']);

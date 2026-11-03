@@ -52,26 +52,28 @@
                 <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard', 'dashboard.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
-                @if (auth()->user()->role !== \App\UserRole::Consumer)
+                @if (auth()->user()->role === \App\UserRole::SuperAdmin)
                     @foreach ([
-                        'provider.consumers.index' => ['Consumer Management', 'users'],
-                        'provider.readings.index' => ['Meter Readings', 'chart-bar'],
-                        'provider.billing.index' => ['Billing Management', 'document-text'],
-                        'provider.payments.index' => ['Payment Management', 'credit-card'],
-                        'provider.balances.index' => ['Outstanding Balances', 'banknotes'],
-                        'provider.service.index' => ['Disconnection & Reconnection', 'arrows-right-left'],
-                        'provider.reports.billing' => ['Billing Reports', 'document-text'],
-                        'provider.reports.consumption' => ['Water Consumption Reports', 'chart-pie'],
+                        'admin.users.index' => ['User Management', 'users'],
+                        'admin.providers.index' => ['Provider Management', 'building-office'],
+                        'admin.permissions.index' => ['Roles & Permissions', 'shield-check'],
+                        'admin.billing.index' => ['Billing Oversight', 'document-text'],
+                        'admin.payments.index' => ['Payment Oversight', 'credit-card'],
+                        'admin.reports.index' => ['Reports & Analytics', 'chart-bar'],
+                        'admin.tickets.index' => ['Complaints & Disputes', 'lifebuoy'],
+                        'admin.settings.index' => ['System Settings', 'cog-6-tooth'],
                     ] as $name => [$label, $icon])
-                        <flux:sidebar.item :icon="$icon" :href="route($name)" :current="request()->routeIs($name)" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __($label) }}</flux:sidebar.item>
+                        <flux:sidebar.item :icon="$icon" :href="route($name)" :current="request()->routeIs(str_replace('.index', '.*', $name))" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __($label) }}</flux:sidebar.item>
                     @endforeach
-                    @if (auth()->user()->role === \App\UserRole::Admin)
+                    @if (request()->routeIs('provider.*', 'dashboard.provider', 'management') && auth()->user()->waterProvider)
                         <flux:separator class="my-3" />
-                        <flux:sidebar.item icon="users" :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Users</flux:sidebar.item>
-                        <flux:sidebar.item icon="cog-6-tooth" :href="route('provider.profile.edit')" :current="request()->routeIs('provider.profile.edit')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Profile Settings</flux:sidebar.item>
+                        <p class="px-3 py-2 text-sm font-medium text-brand-ink dark:text-brand-mist in-data-flux-sidebar-collapsed-desktop:hidden">{{ auth()->user()->waterProvider->name }}</p>
+                        @include('partials.provider-navigation')
                     @endif
+                @elseif (auth()->user()->role !== \App\UserRole::Consumer)
+                    @include('partials.provider-navigation')
                 @else
-                    @foreach (['account' => 'My Account', 'connection' => 'My Connection', 'bills' => 'My Bills', 'payments' => 'Payments'] as $section => $label)
+                    @foreach (['account' => 'My Account', 'connection' => 'My Connection', 'bills' => 'My Bills', 'payments' => 'Payments', 'support' => 'Help & Support'] as $section => $label)
                         <flux:sidebar.item :href="route('portal.section', $section)">{{ __($label) }}</flux:sidebar.item>
                     @endforeach
                     <flux:sidebar.item :href="route('profile.edit')">Settings</flux:sidebar.item>
@@ -108,6 +110,7 @@
                 'provider.service.index' => __('Disconnection & Reconnection'),
                 'provider.reports.billing' => __('Billing Reports'),
                 'provider.reports.consumption' => __('Water Consumption Reports'),
+                'provider.tickets.index' => __('Support Tickets'),
                 'provider.profile.edit' => __('Profile Settings'),
                 default => __('Dashboard'),
             };

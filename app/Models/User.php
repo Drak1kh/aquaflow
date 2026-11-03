@@ -99,7 +99,9 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             return false;
         }
 
-        return true;
+        $override = RolePermission::where('role', $this->role->value)->where('permission', $permission)->first();
+
+        return $override?->allowed ?? true;
     }
 
     /**

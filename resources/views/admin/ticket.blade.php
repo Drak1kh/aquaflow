@@ -10,7 +10,7 @@
 
             <section class="space-y-3">
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <flux:heading size="lg">{{ __('Conversation and notes') }}</flux:heading>
+                    <flux:heading level="2" size="lg">{{ __('Conversation and notes') }}</flux:heading>
                     @if ($ticket->status !== 'closed')
                         <flux:modal.trigger name="reply-to-ticket">
                             <flux:button variant="primary" icon="plus">{{ __('Add response') }}</flux:button>
@@ -36,7 +36,7 @@
 
         <aside>
             <div class="space-y-4 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                <flux:heading size="lg">{{ __('Review') }}</flux:heading>
+                <flux:heading level="2" size="lg">{{ __('Review') }}</flux:heading>
                 <dl class="space-y-3 text-sm">
                     <div><dt class="text-zinc-500">{{ __('Status') }}</dt><dd class="mt-1 font-medium">{{ ucfirst(str_replace('_', ' ', $ticket->status)) }}</dd></div>
                     <div><dt class="text-zinc-500">{{ __('Assigned administrator') }}</dt><dd class="mt-1 font-medium">{{ $admins->firstWhere('id', $ticket->assigned_to)?->name ?? __('Unassigned') }}</dd></div>
@@ -65,14 +65,14 @@
                     <option value="{{ $admin->id }}" @selected(($editingReview ? old('assigned_to') : $ticket->assigned_to) == $admin->id)>{{ $admin->name }}</option>
                 @endforeach
             </flux:select>
-            <flux:textarea name="resolution" :label="__('Resolution')">{{ $editingReview ? old('resolution') : $ticket->resolution }}</flux:textarea>
+            <flux:textarea placeholder="Describe the resolution" name="resolution" :label="__('Resolution')">{{ $editingReview ? old('resolution') : $ticket->resolution }}</flux:textarea>
         </div>
     </x-form-modal>
 
     @if ($ticket->status !== 'closed')
         <x-form-modal name="reply-to-ticket" :title="__('Add response')" :action="route('admin.tickets.reply', $ticket)" :submit-label="__('Post response')" :upload="true">
             <div class="space-y-4">
-                <flux:textarea name="body" :label="__('Message')" required>{{ old('_form') === 'reply-to-ticket' ? old('body') : '' }}</flux:textarea>
+                <flux:textarea placeholder="Enter your response" name="body" :label="__('Message')" required>{{ old('_form') === 'reply-to-ticket' ? old('body') : '' }}</flux:textarea>
                 <label class="flex items-center gap-2 text-sm">
                     <input type="checkbox" name="internal" value="1" @checked(old('_form') === 'reply-to-ticket' && old('internal')) class="size-4 accent-[#0869CF]">
                     {{ __('Internal note (hidden from consumer)') }}

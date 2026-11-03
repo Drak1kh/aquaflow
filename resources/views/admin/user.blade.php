@@ -9,7 +9,7 @@
             <div><dt class="text-sm text-zinc-500">{{ __('Email verification') }}</dt><dd class="mt-1">{{ $user->email_verified_at ? __('Verified') : __('Pending') }}</dd></div>
             <div><dt class="text-sm text-zinc-500">{{ __('Created') }}</dt><dd class="mt-1">{{ $user->created_at->format(app(\App\Actions\PlatformSettings::class)->get('date_format')) }}</dd></div>
         </dl>
-        <section><flux:heading size="lg">{{ __('Account activity') }}</flux:heading>
+        <section><flux:heading level="2" size="lg">{{ __('Account activity') }}</flux:heading>
             <div class="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
                 @forelse ($activity as $event)
                     <div class="flex justify-between gap-3 px-5 py-3 text-sm"><span>{{ str_replace('.', ' · ', $event->action) }}</span><time class="text-zinc-500">{{ $event->created_at->format(app(\App\Actions\PlatformSettings::class)->get('date_format').' g:i A') }}</time></div>

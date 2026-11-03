@@ -9,7 +9,7 @@
         @if ($payment->proof_path)
             <flux:button :href="route('admin.payments.proof', $payment)">{{ __('Download proof of payment') }}</flux:button>
         @endif
-        <section><flux:heading size="lg">{{ __('Verification and audit history') }}</flux:heading>
+        <section><flux:heading level="2" size="lg">{{ __('Verification and audit history') }}</flux:heading>
             <div class="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
                 @forelse ($activity as $event)
                     <div class="flex justify-between gap-3 px-5 py-3 text-sm"><span>{{ str_replace('.', ' · ', $event->action) }}</span><time class="text-zinc-500">{{ $event->created_at->format(app(\App\Actions\PlatformSettings::class)->get('date_format').' g:i A') }}</time></div>

@@ -1,16 +1,20 @@
 <?php
 
 use App\Http\Controllers\Admin\BillingController as AdminBillingController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Admin\PermissionController as AdminPermissionController;
+use App\Http\Controllers\Admin\ProviderController as AdminProviderController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
+use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Consumer\TicketController as ConsumerTicketController;
 use App\Http\Controllers\MvpController;
 use App\Http\Controllers\PasswordChangeController;
 use App\Http\Controllers\Provider\ModuleController;
 use App\Http\Controllers\Provider\OperationsController;
-use App\Http\Middleware\BindSingleProvider;
+use App\Http\Middleware\EnsureProviderContext;
 use App\UserRole;
 use Illuminate\Support\Facades\Route;
 
@@ -21,20 +25,31 @@ Route::middleware('auth')->group(function () {
     Route::post('password/change', [PasswordChangeController::class, 'update'])->name('password.change.store');
 });
 
-Route::middleware(['auth', 'verified', BindSingleProvider::class])->group(function () {
+Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(function () {
     Route::get('dashboard', function () {
         return redirect()->route(match (auth()->user()->role) {
-            UserRole::SuperAdmin => 'dashboard.provider',
+            UserRole::SuperAdmin => 'dashboard.admin',
             UserRole::WaterProvider => 'dashboard.provider',
             UserRole::Consumer => 'dashboard.consumer',
         });
     })->name('dashboard');
 
-    Route::redirect('dashboard/admin', '/dashboard/provider')->middleware('can:access-super-admin')->name('dashboard.admin');
+    Route::get('dashboard/admin', AdminDashboardController::class)->middleware('can:access-super-admin')->name('dashboard.admin');
     Route::get('dashboard/provider', [OperationsController::class, 'index'])->middleware('can:access-water-provider')->name('dashboard.provider');
     Route::get('dashboard/consumer', [ConsumerTicketController::class, 'index'])->middleware('can:access-consumer')->name('dashboard.consumer');
 
     Route::prefix('admin')->name('admin.')->middleware('can:access-super-admin')->group(function () {
+        Route::get('providers', [AdminProviderController::class, 'index'])->name('providers.index');
+        Route::post('providers', [AdminProviderController::class, 'store'])->name('providers.store');
+        Route::put('providers/{provider}', [AdminProviderController::class, 'update'])->name('providers.update');
+        Route::patch('providers/{provider}/status', [AdminProviderController::class, 'toggle'])->name('providers.status');
+        Route::get('permissions', [AdminPermissionController::class, 'index'])->name('permissions.index');
+        Route::put('permissions', [AdminPermissionController::class, 'update'])->name('permissions.update');
+        Route::get('tickets', [AdminTicketController::class, 'index'])->name('tickets.index');
+        Route::get('tickets/{ticket}', [AdminTicketController::class, 'show'])->name('tickets.show');
+        Route::put('tickets/{ticket}', [AdminTicketController::class, 'update'])->name('tickets.update');
+        Route::post('tickets/{ticket}/reply', [AdminTicketController::class, 'reply'])->name('tickets.reply');
+        Route::get('attachments/{message}', [AdminTicketController::class, 'attachment'])->name('tickets.attachment');
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::get('users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::post('users', [AdminUserController::class, 'store'])->name('users.store');
@@ -53,9 +68,16 @@ Route::middleware(['auth', 'verified', BindSingleProvider::class])->group(functi
         Route::put('settings', [AdminSettingController::class, 'update'])->name('settings.update');
     });
 
+    Route::prefix('portal')->name('portal.')->middleware('can:access-consumer')->group(function () {
+        Route::post('tickets', [ConsumerTicketController::class, 'store'])->middleware('can:tickets.create')->name('tickets.store');
+        Route::get('tickets/{ticket}', [ConsumerTicketController::class, 'show'])->middleware('can:tickets.view')->name('tickets.show');
+        Route::post('tickets/{ticket}/reply', [ConsumerTicketController::class, 'reply'])->middleware('can:tickets.respond')->name('tickets.reply');
+        Route::get('attachments/{message}', [ConsumerTicketController::class, 'attachment'])->middleware('can:tickets.view')->name('tickets.attachment');
+    });
+
     Route::get('management/{section}', [MvpController::class, 'management'])->middleware('can:access-water-provider')->name('management');
     Route::post('provider/billing-periods', [MvpController::class, 'billingPeriod'])->middleware('can:billing.manage')->name('provider.periods.store');
-    Route::put('provider/profile', [MvpController::class, 'providerSettings'])->middleware('can:access-super-admin')->name('provider.profile');
+    Route::put('provider/profile', [MvpController::class, 'providerSettings'])->middleware('can:provider.settings.manage')->name('provider.profile');
     Route::put('provider/consumers/{consumer}', [MvpController::class, 'updateConsumer'])->middleware('can:consumers.manage')->name('provider.consumers.update');
     Route::put('provider/readings/{reading}', [MvpController::class, 'correctReading'])->middleware('can:connections.manage')->name('provider.readings.update');
     Route::get('portal/{section}', [MvpController::class, 'portal'])->middleware('can:access-consumer')->name('portal.section');
@@ -66,16 +88,22 @@ Route::middleware(['auth', 'verified', BindSingleProvider::class])->group(functi
 
     Route::prefix('provider')->name('provider.')->middleware('can:access-water-provider')->group(function () {
         foreach (['consumers', 'readings', 'billing', 'payments'] as $module) {
-            Route::get($module, [OperationsController::class, 'index'])->defaults('module', $module)->name($module.'.index');
+            Route::get($module, [OperationsController::class, 'index'])->defaults('module', $module)->middleware('can:'.match ($module) {
+                'consumers' => 'consumers.view', 'readings' => 'connections.view', 'billing' => 'billing.view', 'payments' => 'payments.view'
+            })->name($module.'.index');
         }
-        Route::get('balances', [MvpController::class, 'management'])->defaults('section', 'balances')->name('balances.index');
-        Route::get('profile', [MvpController::class, 'management'])->defaults('section', 'settings')->name('profile.edit');
-        Route::get('service', [ModuleController::class, 'service'])->name('service.index');
+        Route::get('balances', [MvpController::class, 'management'])->defaults('section', 'balances')->middleware('can:payments.view')->name('balances.index');
+        Route::get('profile', [MvpController::class, 'management'])->defaults('section', 'settings')->middleware('can:provider.settings.manage')->name('profile.edit');
+        Route::get('service', [ModuleController::class, 'service'])->middleware('can:connections.view')->name('service.index');
         Route::post('service/{connection}', [ModuleController::class, 'serviceAction'])->middleware('can:connections.manage')->name('service.store');
         Route::post('bills/{bill}/penalty', [ModuleController::class, 'penalty'])->middleware('can:billing.manage')->name('bills.penalty');
         Route::post('bills/{bill}/adjustments', [ModuleController::class, 'adjustment'])->middleware('can:access-super-admin')->name('adjustments.store');
-        Route::get('reports/billing', [ModuleController::class, 'billingReport'])->name('reports.billing');
-        Route::get('reports/consumption', [ModuleController::class, 'consumptionReport'])->name('reports.consumption');
+        Route::get('reports/billing', [ModuleController::class, 'billingReport'])->middleware('can:reports.view')->name('reports.billing');
+        Route::get('reports/consumption', [ModuleController::class, 'consumptionReport'])->middleware('can:reports.view')->name('reports.consumption');
+        Route::get('tickets', [ModuleController::class, 'tickets'])->middleware('can:tickets.view')->name('tickets.index');
+        Route::post('tickets/{ticket}/escalate', [OperationsController::class, 'escalate'])->middleware('can:tickets.respond')->name('tickets.escalate');
+        Route::post('tickets/{ticket}/reply', [OperationsController::class, 'replyTicket'])->middleware('can:tickets.respond')->name('tickets.reply');
+        Route::get('attachments/{message}', [OperationsController::class, 'attachment'])->middleware('can:tickets.view')->name('tickets.attachment');
         Route::post('consumers', [OperationsController::class, 'consumer'])->middleware('can:consumers.manage')->name('consumers.store');
         Route::patch('consumers/{consumer}/status', [OperationsController::class, 'consumerStatus'])->middleware('can:consumers.manage')->name('consumers.status');
         Route::post('consumers/{consumer}/portal', [OperationsController::class, 'activatePortal'])->middleware('can:consumers.manage')->name('consumers.portal');

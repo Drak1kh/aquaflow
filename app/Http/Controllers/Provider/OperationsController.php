@@ -56,8 +56,8 @@ class OperationsController extends Controller
                 'outstanding' => bcsub((string) $validBills->sum('total'), (string) $paid, 2),
                 'monthlyConsumption' => MeterReading::where('water_provider_id', $providerId)->whereDate('period_month', now()->startOfMonth()->toDateString())->selectRaw('COALESCE(SUM(current_reading - previous_reading), 0) as usage_total')->first()->usage_total,
                 'collected' => Payment::where('water_provider_id', $providerId)->where('status', 'verified')->sum('amount'),
-                'bills' => $bills->with(['consumer', 'allocations'])->latest('id')->limit(5)->get(),
-                'payments' => Payment::where('water_provider_id', $providerId)->latest('id')->limit(5)->get(),
+                'bills' => $request->user()->can('billing.view') ? $bills->with(['consumer', 'allocations'])->latest('id')->limit(5)->get() : collect(),
+                'payments' => $request->user()->can('payments.view') ? Payment::where('water_provider_id', $providerId)->latest('id')->limit(5)->get() : collect(),
             ];
         } elseif ($module === 'consumers') {
             $selectedId = $request->input('edit_consumer') ?? $request->input('portal_consumer');

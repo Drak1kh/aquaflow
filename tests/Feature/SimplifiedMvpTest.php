@@ -11,7 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
-test('admin and staff share operations but staff cannot administer users or settings', function () {
+test('provider accounts can manage their profile but cannot administer platform users or settings', function () {
     $provider = WaterProvider::factory()->create();
     $admin = User::factory()->superAdmin()->create();
     $staff = User::factory()->waterProvider()->create(['water_provider_id' => $provider->id]);
@@ -21,7 +21,8 @@ test('admin and staff share operations but staff cannot administer users or sett
     $this->actingAs($staff)->get(route('dashboard.provider'))->assertOk();
     $this->get(route('management', 'reports'))->assertOk();
     $this->get(route('admin.users.index'))->assertForbidden();
-    $this->get(route('management', 'settings'))->assertForbidden();
+    $this->get(route('management', 'settings'))->assertOk();
+    $this->get(route('admin.settings.index'))->assertForbidden();
 });
 
 test('consumer proof requires verification and documents are private', function () {

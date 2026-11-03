@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\UserRole;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +19,7 @@ class EnsureAccountReady
     {
         $user = $request->user();
 
-        if ($user && (! $user->is_active || ($user->water_provider_id && ! $user->waterProvider?->is_active) || ($user->consumer_id && (! $user->consumer?->is_active || ! $user->consumer->waterProvider?->is_active)))) {
+        if ($user && (! $user->is_active || ($user->role !== UserRole::SuperAdmin && $user->water_provider_id && ! $user->waterProvider?->is_active) || ($user->consumer_id && (! $user->consumer?->is_active || ! $user->consumer->waterProvider?->is_active)))) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

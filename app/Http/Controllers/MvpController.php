@@ -10,12 +10,14 @@ use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\MeterReading;
 use App\Models\Payment;
+use App\Models\SupportTicket;
 use App\Models\WaterProvider;
 use App\UserRole;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +30,10 @@ class MvpController extends Controller
     {
         abort_unless(in_array($section, ['balances', 'reports', 'settings'], true), 404);
         if ($section === 'settings') {
-            abort_unless($request->user()->role === UserRole::Admin, 403);
+            Gate::authorize('provider.settings.manage');
+        }
+        if ($section !== 'settings') {
+            Gate::authorize($section === 'reports' ? 'reports.view' : 'payments.view');
         }
         $request->validate(['month' => ['nullable', 'date_format:Y-m'], 'search' => ['nullable', 'string', 'max:255'], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'], 'overdue' => ['nullable', 'boolean']]);
         $provider = $request->user()->waterProvider;
@@ -132,8 +137,14 @@ class MvpController extends Controller
 
     public function portal(Request $request, string $section): View
     {
-        abort_unless(in_array($section, ['account', 'connection', 'bills', 'payments'], true), 404);
+        abort_unless(in_array($section, ['account', 'connection', 'bills', 'payments', 'support'], true), 404);
         $consumer = $request->user()->consumer;
+        Gate::authorize(match ($section) {
+            'bills' => 'billing.view', 'payments' => 'payments.view', 'support' => 'tickets.view', default => 'access-consumer'
+        });
+        if ($section === 'support') {
+            return view('consumer.support', ['consumer' => $consumer, 'tickets' => SupportTicket::where('consumer_id', $consumer->id)->latest('id')->paginate(20)]);
+        }
 
         return view('consumer.details', [
             'section' => $section, 'consumer' => $consumer,
@@ -165,6 +176,7 @@ class MvpController extends Controller
 
     public function bill(Request $request, Bill $bill): View
     {
+        Gate::authorize('billing.view');
         $this->authorizeDocument($request, $bill->consumer_id, $bill->water_provider_id);
 
         return view('consumer.document', ['bill' => $bill->load(['consumer', 'waterProvider', 'allocations', 'adjustments']), 'payment' => null]);
@@ -172,6 +184,7 @@ class MvpController extends Controller
 
     public function receipt(Request $request, Payment $payment): View
     {
+        Gate::authorize('payments.view');
         $this->authorizeDocument($request, $payment->consumer_id, $payment->water_provider_id);
         abort_unless($payment->status === 'verified', 404);
 
@@ -180,6 +193,7 @@ class MvpController extends Controller
 
     public function proof(Request $request, Payment $payment): StreamedResponse
     {
+        Gate::authorize('payments.view');
         abort_unless($payment->water_provider_id === $request->user()->water_provider_id && $payment->proof_path, 404);
 
         return Storage::disk('local')->download($payment->proof_path);
@@ -187,6 +201,9 @@ class MvpController extends Controller
 
     private function authorizeDocument(Request $request, int $consumerId, int $providerId): void
     {
+        if ($request->user()->role === UserRole::SuperAdmin) {
+            return;
+        }
         abort_unless($request->user()->role === UserRole::Consumer ? $request->user()->consumer_id === $consumerId : $request->user()->water_provider_id === $providerId, 404);
     }
 }

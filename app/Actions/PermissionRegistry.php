@@ -15,6 +15,8 @@ class PermissionRegistry
         'payments.view' => 'View payments',
         'payments.manage' => 'Record payments',
         'payments.verify' => 'Verify payments',
+        'reports.view' => 'View provider reports',
+        'provider.settings.manage' => 'Update provider profile and billing settings',
         'tickets.view' => 'View support tickets',
         'tickets.create' => 'Submit support tickets',
         'tickets.respond' => 'Respond and escalate tickets',
@@ -25,7 +27,7 @@ class PermissionRegistry
         'water_provider' => [
             'consumers.view', 'consumers.manage', 'connections.view', 'connections.manage',
             'billing.view', 'billing.manage', 'payments.view', 'payments.manage', 'payments.verify',
-            'tickets.view', 'tickets.respond',
+            'tickets.view', 'tickets.respond', 'reports.view', 'provider.settings.manage',
         ],
         'consumer' => ['billing.view', 'payments.view', 'tickets.view', 'tickets.create', 'tickets.respond'],
     ];

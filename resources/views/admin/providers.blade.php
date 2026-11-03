@@ -10,30 +10,30 @@
 
         <x-form-modal name="create-provider" :title="__('Register provider')" :action="route('admin.providers.store')" :submit-label="__('Register provider')">
             <div class="grid gap-4 sm:grid-cols-2">
-                <flux:input name="name" :value="old('_form') === 'create-provider' ? old('name') : null" :label="__('Provider name')" required />
-                <flux:input name="code" :value="old('_form') === 'create-provider' ? old('code') : null" :label="__('Unique code')" required />
-                <flux:input name="email" type="email" :value="old('_form') === 'create-provider' ? old('email') : null" :label="__('Email')" />
-                <flux:input name="phone" :value="old('_form') === 'create-provider' ? old('phone') : null" :label="__('Phone')" />
+                <flux:input placeholder="Enter the full name" name="name" :value="old('_form') === 'create-provider' ? old('name') : null" :label="__('Provider name')" required />
+                <flux:input placeholder="e.g. north-water" name="code" :value="old('_form') === 'create-provider' ? old('code') : null" :label="__('Unique code')" required />
+                <flux:input placeholder="e.g. account@example.com" name="email" type="email" :value="old('_form') === 'create-provider' ? old('email') : null" :label="__('Email')" />
+                <flux:input placeholder="e.g. 09123456789" name="phone" :value="old('_form') === 'create-provider' ? old('phone') : null" :label="__('Phone')" />
                 <div class="sm:col-span-2">
-                    <flux:textarea name="address" :label="__('Address')">{{ old('_form') === 'create-provider' ? old('address') : '' }}</flux:textarea>
+                    <flux:textarea placeholder="Enter the office or service address" name="address" :label="__('Address')">{{ old('_form') === 'create-provider' ? old('address') : '' }}</flux:textarea>
                 </div>
             </div>
         </x-form-modal>
 
-        <form method="GET" class="flex gap-3">
+        <form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end">
             <flux:input name="search" :value="request('search')" :placeholder="__('Search providers')" icon="magnifying-glass" />
             <flux:button type="submit">{{ __('Search') }}</flux:button>
         </form>
 
         <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
             <table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700">
-                <thead class="bg-[#F7FCFE] text-[#062E68] dark:bg-zinc-800 dark:text-white">
+                <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white">
                     <tr>
-                        <th class="px-5 py-3">{{ __('Provider') }}</th>
-                        <th class="px-5 py-3">{{ __('Consumers') }}</th>
-                        <th class="px-5 py-3">{{ __('Staff') }}</th>
-                        <th class="px-5 py-3">{{ __('Status') }}</th>
-                        <th class="px-5 py-3">{{ __('Action') }}</th>
+                        <th scope="col" class="px-5 py-3">{{ __('Provider') }}</th>
+                        <th scope="col" class="px-5 py-3">{{ __('Consumers') }}</th>
+                        <th scope="col" class="px-5 py-3">{{ __('Staff') }}</th>
+                        <th scope="col" class="px-5 py-3">{{ __('Status') }}</th>
+                        <th scope="col" class="px-5 py-3">{{ __('Action') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -45,13 +45,14 @@
                             <td class="px-5 py-4"><flux:badge :color="$provider->is_active ? 'green' : 'zinc'">{{ $provider->is_active ? __('Active') : __('Inactive') }}</flux:badge></td>
                             <td class="px-5 py-4">
                                 <div class="flex flex-wrap gap-2">
+                                    <flux:button :href="route('dashboard.provider', ['provider_context' => $provider->id])">Open operations</flux:button>
                                     <flux:modal.trigger :name="'edit-provider-'.$provider->id">
-                                        <flux:button size="sm" variant="subtle">{{ __('Edit') }}</flux:button>
+                                        <flux:button class="min-h-11" variant="subtle">{{ __('Edit') }}</flux:button>
                                     </flux:modal.trigger>
                                     <form method="POST" action="{{ route('admin.providers.status', $provider) }}">
                                         @csrf
                                         @method('PATCH')
-                                        <flux:button size="sm" type="submit">{{ $provider->is_active ? __('Deactivate') : __('Activate') }}</flux:button>
+                                        <flux:button class="min-h-11" type="submit">{{ $provider->is_active ? __('Deactivate') : __('Activate') }}</flux:button>
                                     </form>
                                 </div>
                             </td>
@@ -67,16 +68,16 @@
             @php($editingThisProvider = old('_form') === 'edit-provider-'.$provider->id)
             <x-form-modal :name="'edit-provider-'.$provider->id" :title="__('Edit provider')" :description="$provider->name" :action="route('admin.providers.update', $provider)" method="PUT" :submit-label="__('Save provider')">
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <flux:input name="name" :value="$editingThisProvider ? old('name') : $provider->name" :label="__('Provider name')" required />
-                    <flux:input name="code" :value="$editingThisProvider ? old('code') : $provider->code" :label="__('Unique code')" required />
-                    <flux:input name="email" type="email" :value="$editingThisProvider ? old('email') : $provider->email" :label="__('Email')" />
-                    <flux:input name="phone" :value="$editingThisProvider ? old('phone') : $provider->phone" :label="__('Phone')" />
+                    <flux:input placeholder="Enter the full name" name="name" :value="$editingThisProvider ? old('name') : $provider->name" :label="__('Provider name')" required />
+                    <flux:input placeholder="e.g. north-water" name="code" :value="$editingThisProvider ? old('code') : $provider->code" :label="__('Unique code')" required />
+                    <flux:input placeholder="e.g. account@example.com" name="email" type="email" :value="$editingThisProvider ? old('email') : $provider->email" :label="__('Email')" />
+                    <flux:input placeholder="e.g. 09123456789" name="phone" :value="$editingThisProvider ? old('phone') : $provider->phone" :label="__('Phone')" />
                     <div class="sm:col-span-2">
-                        <flux:input name="address" :value="$editingThisProvider ? old('address') : $provider->address" :label="__('Address')" />
+                        <flux:input placeholder="Enter the office or service address" name="address" :value="$editingThisProvider ? old('address') : $provider->address" :label="__('Address')" />
                     </div>
-                    <flux:input name="due_days" type="number" min="0" max="90" :value="$editingThisProvider ? old('due_days') : $provider->due_days" :label="__('Due days override')" />
-                    <flux:input name="grace_days" type="number" min="0" max="90" :value="$editingThisProvider ? old('grace_days') : $provider->grace_days" :label="__('Grace days override')" />
-                    <flux:input name="late_fee" type="number" min="0" step="0.01" :value="$editingThisProvider ? old('late_fee') : $provider->late_fee" :label="__('Late fee override (PHP)')" />
+                    <flux:input placeholder="e.g. 14" name="due_days" type="number" min="0" max="90" :value="$editingThisProvider ? old('due_days') : $provider->due_days" :label="__('Due days override')" />
+                    <flux:input placeholder="e.g. 7" name="grace_days" type="number" min="0" max="90" :value="$editingThisProvider ? old('grace_days') : $provider->grace_days" :label="__('Grace days override')" />
+                    <flux:input placeholder="e.g. 20.00" name="late_fee" type="number" min="0" step="0.01" :value="$editingThisProvider ? old('late_fee') : $provider->late_fee" :label="__('Late fee override (PHP)')" />
                 </div>
             </x-form-modal>
         @endforeach

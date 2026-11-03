@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Consumer;
 use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Models\SupportTicket;
 use App\Models\WaterProvider;
 use Illuminate\View\View;
@@ -25,7 +26,9 @@ class DashboardController extends Controller
             'bills' => Bill::where('status', '!=', 'void')->count(),
             'billed' => $billed,
             'collected' => $collected,
-            'outstanding' => bcsub($billed, $collected, 2),
+            'outstanding' => bcsub($billed, (string) PaymentAllocation::whereHas('bill', fn ($q) => $q->where('status', '!=', 'void'))->sum('amount'), 2),
+            'payments' => Payment::count(),
+            'pendingPayments' => Payment::where('status', 'pending')->count(),
             'openTickets' => SupportTicket::whereNotNull('escalated_at')->whereNotIn('status', ['resolved', 'closed'])->count(),
             'recentTickets' => SupportTicket::with(['consumer', 'waterProvider'])->whereNotNull('escalated_at')->whereNotIn('status', ['resolved', 'closed'])->latest('escalated_at')->limit(5)->get(),
             'activity' => AuditLog::latest('id')->limit(8)->get(),
