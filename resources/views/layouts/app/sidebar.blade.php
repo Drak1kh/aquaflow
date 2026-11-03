@@ -4,15 +4,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800" x-data="{
-        sidebarSearch: '',
-        matchesSidebarItem(label) {
-            return label.trim().toLocaleLowerCase().includes(this.sidebarSearch.trim().toLocaleLowerCase());
-        },
-        get sidebarHasResults() {
-            return [...document.querySelectorAll('[data-flux-sidebar-item]')].some(item => this.matchesSidebarItem(item.textContent));
-        },
-    }">
+    <body class="min-h-screen bg-white dark:bg-zinc-800">
         <flux:sidebar sticky collapsible class="aquaflow-sidebar border-e border-zinc-200 bg-brand-surface transition-[width,padding,transform] duration-300 ease-in-out motion-reduce:transition-none dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <a href="{{ route('dashboard') }}" wire:navigate aria-label="{{ __('AquaFlow dashboard') }}" class="relative flex h-16 min-w-0 flex-1 items-center overflow-hidden in-data-flux-sidebar-collapsed-desktop:mx-auto in-data-flux-sidebar-collapsed-desktop:w-10 in-data-flux-sidebar-collapsed-desktop:flex-none">
@@ -24,32 +16,8 @@
 
             <flux:separator />
 
-            <div class="in-data-flux-sidebar-collapsed-desktop:hidden">
-                <flux:input
-                    x-ref="sidebarSearchInput"
-                    x-model="sidebarSearch"
-                    x-on:keydown.escape="sidebarSearch = ''; $el.blur()"
-                    type="search"
-                    icon="search"
-                    clearable
-                    autocomplete="off"
-                    :placeholder="__('Search menu...')"
-                    :aria-label="__('Search sidebar menu')"
-                />
-            </div>
-
-            <flux:tooltip :content="__('Search menu')" position="right" class="hidden in-data-flux-sidebar-collapsed-desktop:block">
-                <flux:button
-                    variant="subtle"
-                    icon="search"
-                    class="w-10"
-                    :aria-label="__('Search menu')"
-                    x-on:click="$dispatch('flux-sidebar-toggle'); $nextTick(() => $refs.sidebarSearchInput.focus())"
-                />
-            </flux:tooltip>
-
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard', 'dashboard.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
+                <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard', 'dashboard.*')" wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
                 @if (auth()->user()->role === \App\UserRole::SuperAdmin)
@@ -63,7 +31,7 @@
                         'admin.tickets.index' => ['Complaints & Disputes', 'lifebuoy'],
                         'admin.settings.index' => ['System Settings', 'cog-6-tooth'],
                     ] as $name => [$label, $icon])
-                        <flux:sidebar.item :icon="$icon" :href="route($name)" :current="request()->routeIs(str_replace('.index', '.*', $name))" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __($label) }}</flux:sidebar.item>
+                        <flux:sidebar.item :icon="$icon" :href="route($name)" :current="request()->routeIs(str_replace('.index', '.*', $name))" wire:navigate>{{ __($label) }}</flux:sidebar.item>
                     @endforeach
                     @if (request()->routeIs('provider.*', 'dashboard.provider', 'management') && auth()->user()->waterProvider)
                         <flux:separator class="my-3" />
@@ -73,19 +41,15 @@
                 @elseif (auth()->user()->role !== \App\UserRole::Consumer)
                     @include('partials.provider-navigation')
                 @else
-                    @foreach (['account' => ['My Account', 'identification'], 'connection' => ['My Connection', 'arrows-right-left'], 'bills' => ['My Bills', 'document-text'], 'payments' => ['Payments', 'credit-card'], 'notifications' => ['Notifications', 'bell'], 'support' => ['Help & Support', 'lifebuoy']] as $section => [$label, $icon])
+                    @foreach (['account' => ['My Account', 'identification'], 'connection' => ['My Connection', 'arrows-right-left'], 'bills' => ['My Bills', 'document-text'], 'payments' => ['Payments', 'credit-card'], 'notifications' => ['Notifications', 'bell'], 'faq' => ['FAQs', 'book-open-text'], 'support' => ['Help & Support', 'lifebuoy']] as $section => [$label, $icon])
                         @can(match ($section) {'bills' => 'billing.view', 'payments' => 'payments.view', 'notifications' => 'notifications.view', default => 'access-consumer'})
-                            <flux:sidebar.item :icon="$icon" :href="route('portal.section', $section)" :current="request()->routeIs('portal.section') && request()->route('section') === $section" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __($label) }}</flux:sidebar.item>
+                            <flux:sidebar.item :icon="$icon" :href="route('portal.section', $section)" :current="request()->routeIs('portal.section') && request()->route('section') === $section" wire:navigate>{{ __($label) }}</flux:sidebar.item>
                         @endcan
                     @endforeach
-                    <flux:sidebar.item icon="cog-6-tooth" :href="route('portal.settings')" :current="request()->routeIs('portal.settings')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Settings</flux:sidebar.item>
+                    <flux:sidebar.item icon="cog-6-tooth" :href="route('portal.settings')" :current="request()->routeIs('portal.settings')" wire:navigate>Settings</flux:sidebar.item>
                 @endif
 
             </flux:sidebar.nav>
-
-            <p x-cloak x-show="sidebarSearch.trim() !== '' && !sidebarHasResults" class="[x-cloak]:hidden px-3 text-sm text-zinc-500 in-data-flux-sidebar-collapsed-desktop:hidden dark:text-zinc-400">
-                {{ __('No menu items found') }}
-            </p>
 
             <flux:spacer />
 
@@ -94,7 +58,7 @@
         @php
             $pageTitle = match (request()->route()?->getName()) {
                 'portal.settings' => __('Client Settings'),
-                'portal.section' => match (request()->route('section')) {'account' => __('My Account'), 'connection' => __('My Connection'), 'bills' => __('My Bills'), 'payments' => __('Payments'), 'notifications' => __('Notifications'), 'support' => __('Help & Support'), default => __('Client Portal')},
+                'portal.section' => match (request()->route('section')) {'account' => __('My Account'), 'connection' => __('My Connection'), 'bills' => __('My Bills'), 'payments' => __('Payments'), 'notifications' => __('Notifications'), 'faq' => __('FAQs'), 'support' => __('Help & Support'), default => __('Client Portal')},
                 'profile.edit' => __('Profile'),
                 'security.edit' => __('Security'),
                 'appearance.edit' => __('Appearance'),

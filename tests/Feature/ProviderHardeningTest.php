@@ -30,7 +30,7 @@ test('only the selected consumer edit form is rendered and submitted values surv
     $admin = User::factory()->superAdmin()->create();
     $page = route('provider.consumers.index', ['edit_consumer' => $consumer->id]);
 
-    $this->actingAs($admin)->get($page)->assertOk()->assertSee('data-modal="edit-consumer-'.$consumer->id.'"', false)->assertDontSee('data-modal="edit-consumer-'.$other->id.'"', false);
+    $this->actingAs($admin)->get($page)->assertOk()->assertSee('data-modal="edit-consumer-'.$consumer->id.'"', false)->assertDontSee('data-modal="edit-consumer-'.$other->id.'"', false)->assertSee('initiallyOpen: true', false);
     $this->from($page)->put(route('provider.consumers.update', $consumer), ['_form' => 'edit-consumer-'.$consumer->id, 'name' => 'Unsaved revised name', 'email' => 'invalid', 'phone' => '09123456789', 'address' => 'Revised address'])->assertSessionHasErrors('email');
     $this->get($page)->assertOk()->assertSee('value="Unsaved revised name"', false)->assertSee('value="Revised address"', false);
     expect($consumer->fresh()->name)->toBe($consumer->name);

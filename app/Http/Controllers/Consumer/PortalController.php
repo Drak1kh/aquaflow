@@ -44,7 +44,7 @@ class PortalController extends Controller
 
     public function page(Request $request, string $section): View
     {
-        abort_unless(in_array($section, ['account', 'connection', 'bills', 'payments', 'notifications', 'support'], true), 404);
+        abort_unless(in_array($section, ['account', 'connection', 'bills', 'payments', 'notifications', 'faq', 'support'], true), 404);
         $consumer = $request->user()->consumer;
         $data = ['consumer' => $consumer, 'provider' => $consumer->waterProvider];
         if ($section === 'account') {
@@ -80,7 +80,7 @@ class PortalController extends Controller
             $request->validate(['unread' => ['nullable', 'boolean']]);
             $data['notices'] = ClientNotice::where('user_id', $request->user()->id)->where('consumer_id', $request->user()->consumer_id)->when($request->boolean('unread'), fn ($q) => $q->whereNull('read_at'))->latest('id')->paginate(20)->withQueryString();
             $data['unreadCount'] = ClientNotice::where('user_id', $request->user()->id)->where('consumer_id', $request->user()->consumer_id)->whereNull('read_at')->count();
-        } else {
+        } elseif ($section === 'support') {
             if ($request->user()->can('tickets.view')) {
                 $data['tickets'] = SupportTicket::where('consumer_id', $consumer->id)->latest('id')->paginate(20);
             }

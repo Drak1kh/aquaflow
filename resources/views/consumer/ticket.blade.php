@@ -1,5 +1,5 @@
 <x-layouts::app :title="$ticket->subject">
-    <div class="mx-auto max-w-3xl space-y-6">
+    <div class="client-page w-full min-w-0 space-y-6">
         <x-page-header :title="$ticket->subject" :description="ucfirst(str_replace('_', ' ', $ticket->status))" :back-href="route('dashboard.consumer')" :back-label="__('My account')" />
         <div class="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900"><p class="whitespace-pre-wrap">{{ $ticket->description }}</p></div>
 

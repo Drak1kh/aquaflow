@@ -6,11 +6,121 @@ use App\Models\ClientNotice;
 use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\Payment;
+use App\Models\RolePermission;
 use App\Models\ServiceEvent;
 use App\Models\SupportTicket;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+
+test('consumers can read FAQs on a dedicated page instead of the support page', function () {
+    $consumer = Consumer::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $consumer->id]);
+
+    $this->actingAs($client)->get(route('portal.section', 'faq'))
+        ->assertOk()->assertSee('Frequently asked questions')
+        ->assertSee('How is my consumption calculated?')->assertSee('Can I make a partial payment?')
+        ->assertSee('Does payment automatically reconnect service?')->assertSee('Contact support');
+
+    $this->get(route('portal.section', 'support'))->assertOk()
+        ->assertSee('Contact your water provider')->assertSee('Your support history')
+        ->assertDontSee('How is my consumption calculated?')->assertDontSee('Frequently asked questions');
+});
+
+test('provider users cannot access the consumer FAQ page', function () {
+    $connection = Connection::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $connection->water_provider_id]);
+
+    $this->actingAs($staff)->get(route('portal.section', 'faq'))->assertForbidden();
+});
+
+test('support concerns use a closed modal until the consumer opens it', function () {
+    $consumer = Consumer::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $consumer->id]);
+
+    $response = $this->actingAs($client)->get(route('portal.section', 'support'));
+
+    $response->assertOk()->assertSee('data-modal="submit-support-ticket"', false)->assertSee('Submit concern');
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $elements = new DOMXPath($document);
+    expect($elements->query('//dialog[@data-modal="submit-support-ticket"]//textarea[@name="description"]'))->toHaveCount(1);
+    expect($elements->query('//div[contains(@x-data, "initiallyOpen: true")]'))->toHaveCount(0);
+});
+
+test('support validation reopens the concern modal and preserves entered details', function () {
+    $consumer = Consumer::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $consumer->id]);
+    $page = route('portal.section', 'support');
+
+    $this->actingAs($client)->from($page)->post(route('portal.tickets.store'), [
+        '_form' => 'submit-support-ticket', 'type' => 'billing', 'subject' => '', 'description' => 'Please check my latest bill.',
+    ])->assertSessionHasErrors('subject');
+    session()->reflash();
+    session()->save();
+    $response = $this->get($page);
+
+    $response->assertOk()->assertSee('Please check my latest bill.');
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $elements = new DOMXPath($document);
+    expect($elements->query('//div[contains(@x-data, "initiallyOpen: true")]'))->toHaveCount(1);
+    $this->assertDatabaseCount('support_tickets', 0);
+});
+
+test('consumers without ticket creation permission do not see the concern modal', function () {
+    $consumer = Consumer::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $consumer->id]);
+    RolePermission::factory()->create(['role' => 'consumer', 'permission' => 'tickets.create', 'allowed' => false]);
+
+    $this->actingAs($client)->get(route('portal.section', 'support'))
+        ->assertOk()->assertDontSee('data-modal="submit-support-ticket"', false)->assertDontSee('Submit concern');
+});
+
+test('payment submission is contained in a modal that opens for a selected bill', function () {
+    $bill = Bill::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $bill->consumer_id]);
+
+    $response = $this->actingAs($client)->get(route('portal.section', ['section' => 'payments', 'bill' => $bill->id]));
+
+    $response->assertOk()->assertSee('data-modal="submit-payment"', false);
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $elements = new DOMXPath($document);
+    expect($elements->query('//dialog[@data-modal="submit-payment"]//form[@enctype="multipart/form-data"]'))->toHaveCount(1);
+    expect($elements->query('//dialog[@data-modal="submit-payment"]//input[@name="_form"]')->item(0)->getAttribute('value'))->toBe('submit-payment');
+    expect($elements->query('//dialog[@data-modal="submit-payment"]//select[@name="bill_id"]/option[@selected]')->item(0)->getAttribute('value'))->toBe((string) $bill->id);
+    expect($elements->query('//div[contains(@x-data, "initiallyOpen: true")]'))->toHaveCount(1);
+});
+
+test('payment validation reopens the submission modal and preserves entered details', function () {
+    $bill = Bill::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $bill->consumer_id]);
+    $page = route('portal.section', 'payments');
+
+    $this->actingAs($client)->from($page)->post(route('portal.payments.store'), [
+        '_form' => 'submit-payment', 'bill_id' => $bill->id, 'reference' => 'PAY-RETRY', 'amount' => '25.00', 'paid_at' => today()->toDateString(),
+    ])->assertSessionHasErrors('proof');
+    session()->reflash();
+    session()->save();
+    $response = $this->get($page);
+
+    $response->assertOk()->assertSee('value="PAY-RETRY"', false)->assertSee('value="25.00"', false);
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $elements = new DOMXPath($document);
+    expect($elements->query('//div[contains(@x-data, "initiallyOpen: true")]'))->toHaveCount(1);
+    $this->assertDatabaseCount('payments', 0);
+});
+
+test('payment pages without unpaid bills do not offer a submission modal', function () {
+    $connection = Connection::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $connection->consumer_id]);
+
+    $this->actingAs($client)->get(route('portal.section', 'payments'))
+        ->assertOk()->assertSee('You have no unpaid bills available for payment submission.')
+        ->assertDontSee('data-modal="submit-payment"', false);
+});
 
 test('clients have dedicated account connection payment notification settings and help pages', function () {
     $connection = Connection::factory()->create();
@@ -24,7 +134,7 @@ test('clients have dedicated account connection payment notification settings an
     $this->get(route('portal.settings'))->assertOk()->assertSee('Contact number');
     $this->get(route('portal.section', 'account'))->assertSee($connection->consumer->account_number)->assertSee($connection->consumer->address);
     $this->get(route('portal.section', 'connection'))->assertSee($connection->number)->assertSee($connection->meter_number);
-    $this->get(route('portal.section', 'support'))->assertSee('09123456789')->assertSee('office@example.com')->assertSee('Municipal Office')->assertSee('Frequently asked questions');
+    $this->get(route('portal.section', 'support'))->assertSee('09123456789')->assertSee('office@example.com')->assertSee('Municipal Office');
 });
 
 test('new bills verified payments and service updates create private client notifications', function () {
