@@ -15,7 +15,7 @@
         @else
             @if ($section === 'balances')<flux:button :href="route('provider.service.index')">Disconnection &amp; Reconnection</flux:button>@endif
             <form method="GET" class="flex flex-wrap items-end gap-3">
-                <flux:input placeholder="Select a billing month" type="month" name="month" label="Billing month" :value="request('month')" />
+                <x-month-input name="month" label="Billing month" :value="request('month')" />
                 <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer name or account" :value="request('search')" />
                 <flux:input placeholder="Start date" name="from" type="date" label="From" :value="request('from')" />
                 <flux:input placeholder="End date" name="to" type="date" label="To" :value="request('to')" />

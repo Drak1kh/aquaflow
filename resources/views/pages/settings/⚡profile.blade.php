@@ -4,7 +4,6 @@ use App\Concerns\ProfileValidationRules;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -67,7 +66,7 @@ new #[Title('Profile settings')] class extends Component {
 
         $user->sendEmailVerificationNotification();
 
-        Session::flash('status', 'verification-link-sent');
+        Flux::toast(variant: 'success', text: __('A new verification link has been sent to your email address.'));
     }
 
     #[Computed]
@@ -120,11 +119,6 @@ new #[Title('Profile settings')] class extends Component {
                                 {{ __('Click here to re-send the verification email.') }}
                             </flux:link>
                         </flux:text>
-                        @if (session('status') === 'verification-link-sent')
-                            <flux:text class="mt-2 font-medium !text-green-600 !dark:text-green-400">
-                                {{ __('A new verification link has been sent to your email address.') }}
-                            </flux:text>
-                        @endif
                     </div>
                 @endif
 

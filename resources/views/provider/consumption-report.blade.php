@@ -3,7 +3,7 @@
 <x-page-header title="Water Consumption Reports" description="Compare usage with the preceding recorded period. Review flags indicate usage at least twice, or at most half, the prior nonzero usage." />
 
 <form method="GET" class="flex flex-wrap items-end gap-3">
-    <flux:input placeholder="Select a billing month" name="month" type="month" label="Billing month" :value="request('month')" />
+    <x-month-input name="month" label="Billing month" :value="request('month')" />
     <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer or account" :value="request('search')" />
     <flux:button type="submit">Review consumption</flux:button>
 </form>

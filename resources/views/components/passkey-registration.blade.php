@@ -8,7 +8,6 @@
         showForm: false,
         name: '',
         loading: false,
-        error: null,
         updateSupport() {
             this.supported = Boolean(window.Passkeys?.isSupported());
         },
@@ -43,7 +42,6 @@
             if (!this.name.trim()) return;
 
             this.loading = true;
-            this.error = null;
 
             try {
                 await window.Passkeys.register({ name: this.name });
@@ -52,7 +50,7 @@
                 await $wire.loadPasskeys();
             } catch (e) {
                 if (e.constructor?.name !== 'UserCancelledError') {
-                    this.error = e.message;
+                    $flux.toast({ text: e.message, variant: 'danger', duration: 0 });
                 }
             } finally {
                 this.loading = false;
@@ -61,7 +59,6 @@
         cancel() {
             this.showForm = false;
             this.name = '';
-            this.error = null;
         },
     }"
 >
@@ -92,8 +89,6 @@
                 x-init="$nextTick(() => $refs.passkeyNameInput?.focus())"
             />
             <flux:text class="!mt-1">{{ __('Give this passkey a name to help you identify it later.') }}</flux:text>
-
-            <p x-show="error" x-text="error" x-cloak class="text-sm text-red-600 dark:text-red-400"></p>
 
             <div class="flex gap-2">
                 <flux:button

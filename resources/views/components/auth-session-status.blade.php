@@ -3,7 +3,5 @@
 ])
 
 @if ($status)
-    <div {{ $attributes->merge(['class' => 'font-medium text-sm text-green-600']) }}>
-        {{ $status }}
-    </div>
+    <x-feedback-toast :text="$status === 'verification-link-sent' ? __('A new verification link has been sent to your email address.') : $status" />
 @endif

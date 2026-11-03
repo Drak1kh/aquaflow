@@ -21,6 +21,8 @@
             @endforeach
         </div>
 
+        <x-dashboard-chart :title="__('Billing and collections')" :description="__('Bills by billing month; verified payments by payment date, across all providers.')" :data="$financialTrend" :series="['billed' => __('Billed'), 'collected' => __('Collected')]" />
+
         <div class="grid gap-6 lg:grid-cols-3">
             <section class="lg:col-span-2">
                 <div class="flex items-center justify-between gap-4">

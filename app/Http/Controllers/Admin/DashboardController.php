@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\DashboardTrends;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Bill;
@@ -14,12 +15,13 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(DashboardTrends $trends): View
     {
         $billed = (string) Bill::where('status', '!=', 'void')->sum('total');
         $collected = (string) Payment::where('status', 'verified')->sum('amount');
 
         return view('admin.dashboard', [
+            'financialTrend' => $trends->financial(Bill::query(), Payment::query()),
             'providers' => WaterProvider::count(),
             'activeProviders' => WaterProvider::where('is_active', true)->count(),
             'consumers' => Consumer::count(),

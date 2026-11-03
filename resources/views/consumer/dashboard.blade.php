@@ -9,10 +9,16 @@
     <flux:card><flux:heading level="2">Upcoming due date</flux:heading><flux:text>{{ $upcomingBill ? $upcomingBill->due_at->format('M d, Y') : 'No upcoming payment due.' }}</flux:text></flux:card>
 </div>
 @if ($overdueBill)
-    <flux:callout variant="warning">Overdue: {{ $overdueBill->number }} was due {{ $overdueBill->due_at->format('M d, Y') }}. <flux:link :href="route('portal.section', 'bills')">Review your bills</flux:link></flux:callout>
+    <x-feedback-toast variant="warning" :duration="0" :text="__('Overdue: :number was due :date.', ['number' => $overdueBill->number, 'date' => $overdueBill->due_at->format('M d, Y')])" :link="['label' => __('Review your bills'), 'href' => route('portal.section', 'bills')]" />
 @endif
 @endcan
 <flux:card><flux:heading level="2">Latest water consumption</flux:heading><flux:text>{{ $latestReading ? bcsub($latestReading->current_reading, $latestReading->previous_reading, 3).' m³ · '.$latestReading->period_month->format('M Y').' · Meter '.$latestReading->connection->meter_number : 'No readings yet.' }}</flux:text><flux:link :href="route('portal.section', 'connection')">View connection and reading history</flux:link></flux:card>
+<div class="grid gap-6 xl:grid-cols-2">
+    @can('billing.view')
+        <x-dashboard-chart :title="__('Monthly water bills')" :description="__('Total billed across your connections by billing month, excluding void bills.')" :data="$financialTrend" :series="['billed' => __('Billed')]" />
+    @endcan
+    <x-dashboard-chart :title="__('Water consumption')" :description="__('Your metered usage across all connections by reading month.')" :data="$consumptionTrend" :series="['consumption' => __('Consumption')]" unit="m³" />
+</div>
 @can('billing.view')
 <section class="space-y-3"><flux:heading level="2" size="lg">This month’s bills</flux:heading>
 @forelse ($currentBills as $bill)

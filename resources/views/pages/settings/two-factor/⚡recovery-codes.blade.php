@@ -1,5 +1,6 @@
 <?php
 
+use Flux\Flux;
 use Laravel\Fortify\Actions\GenerateNewRecoveryCodes;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -38,6 +39,7 @@ new class extends Component {
                 $this->recoveryCodes = json_decode(decrypt($user->two_factor_recovery_codes), true);
             } catch (Exception) {
                 $this->addError('recoveryCodes', 'Failed to load recovery codes');
+                Flux::toast(variant: 'danger', text: __('Failed to load recovery codes'), duration: 0);
 
                 $this->recoveryCodes = [];
             }
@@ -106,10 +108,6 @@ new class extends Component {
             x-bind:aria-hidden="!showRecoveryCodes"
         >
             <div class="mt-3 space-y-3">
-                @error('recoveryCodes')
-                    <flux:callout variant="danger" icon="x-circle" heading="{{$message}}"/>
-                @enderror
-
                 @if (filled($recoveryCodes))
                     <div
                         class="grid gap-1 p-4 font-mono text-sm rounded-lg bg-zinc-100 dark:bg-white/5"

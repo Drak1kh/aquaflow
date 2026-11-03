@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Consumer;
 
+use App\Actions\DashboardTrends;
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
 use App\Models\ClientNotice;
@@ -20,7 +21,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PortalController extends Controller
 {
-    public function dashboard(Request $request): View
+    public function dashboard(Request $request, DashboardTrends $trends): View
     {
         $consumer = $request->user()->consumer;
         $bills = Bill::where('consumer_id', $consumer->id)->where('status', '!=', 'void');
@@ -35,7 +36,10 @@ class PortalController extends Controller
         $currentBalance = $currentBills->reduce(fn ($sum, $bill) => bcadd($sum, $bill->balance(), 2), '0.00');
         $paymentStatus = $currentBills->isEmpty() ? 'No current bill' : ($currentBills->every(fn ($bill) => $bill->paymentStatus() === 'Paid') ? 'Paid' : ($currentBills->contains(fn ($bill) => $bill->paymentStatus() === 'Overdue') ? 'Overdue' : (bccomp($currentBalance, $currentTotal, 2) < 0 ? 'Partially Paid' : 'Unpaid')));
 
-        return view('consumer.dashboard', compact('consumer', 'currentBills', 'outstanding', 'upcomingBill', 'overdueBill', 'latestReading', 'currentTotal', 'paymentStatus'));
+        $financialTrend = $canViewBills ? $trends->financial($bills) : [];
+        $consumptionTrend = $trends->consumption(MeterReading::where('water_provider_id', $consumer->water_provider_id)->whereHas('connection', fn ($q) => $q->where('consumer_id', $consumer->id)));
+
+        return view('consumer.dashboard', compact('consumer', 'currentBills', 'outstanding', 'upcomingBill', 'overdueBill', 'latestReading', 'currentTotal', 'paymentStatus', 'financialTrend', 'consumptionTrend'));
     }
 
     public function page(Request $request, string $section): View

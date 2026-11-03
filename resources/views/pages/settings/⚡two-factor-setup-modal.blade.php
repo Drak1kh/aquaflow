@@ -1,5 +1,6 @@
 <?php
 
+use Flux\Flux;
 use Laravel\Fortify\Actions\ConfirmTwoFactorAuthentication;
 use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Livewire\Attributes\Computed;
@@ -58,6 +59,7 @@ new class extends Component {
             $this->manualSetupKey = decrypt($user->two_factor_secret);
         } catch (Exception) {
             $this->addError('setupData', 'Failed to fetch setup data.');
+            Flux::toast(variant: 'danger', text: __('Failed to fetch setup data.'), duration: 0);
 
             $this->reset('qrCodeSvg', 'manualSetupKey');
         }
@@ -220,10 +222,6 @@ new class extends Component {
                     </div>
                 </div>
             @else
-                @error('setupData')
-                    <flux:callout variant="danger" icon="x-circle" heading="{{ $message }}"/>
-                @enderror
-
                 <div class="flex justify-center">
                     <div class="relative w-64 overflow-hidden border rounded-lg border-stone-200 dark:border-stone-700 aspect-square">
                         @empty($qrCodeSvg)

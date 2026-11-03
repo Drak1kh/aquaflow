@@ -18,7 +18,7 @@
 <flux:heading level="2" size="lg">Meter reading history</flux:heading>
 <form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end">
     @if(request('connection'))<input type="hidden" name="connection" value="{{ request('connection') }}">@endif
-    <flux:input name="month" type="month" label="Billing month" :value="request('month')" />
+    <x-month-input name="month" label="Billing month" :value="request('month')" />
     <flux:button type="submit">Filter history</flux:button><flux:button :href="route('portal.section', 'connection')">Show all meters</flux:button>
 </form>
 <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th scope="col" class="p-3">Meter</th><th scope="col" class="p-3">Period</th><th scope="col" class="p-3">Previous</th><th scope="col" class="p-3">Current</th><th scope="col" class="p-3">Consumption m³</th><th scope="col" class="p-3">Recorded</th></tr></thead><tbody>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Actions\AuditLogger;
 use App\Actions\BillingService;
+use App\Actions\DashboardTrends;
 use App\Actions\PaymentService;
 use App\Actions\PlatformSettings;
 use App\Http\Controllers\Controller;
@@ -33,7 +34,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OperationsController extends Controller
 {
-    public function index(Request $request, BillingService $billing): View
+    public function index(Request $request, BillingService $billing, DashboardTrends $trends): View
     {
         $request->validate(['search' => ['nullable', 'string', 'max:255'], 'period' => ['nullable', 'date_format:Y-m'], 'edit_consumer' => ['nullable', 'integer'], 'portal_consumer' => ['nullable', 'integer'], 'reject_payment' => ['nullable', 'integer']]);
         $providerId = $request->user()->water_provider_id;
@@ -48,6 +49,11 @@ class OperationsController extends Controller
             $validBills = Bill::where('water_provider_id', $providerId)->where('status', '!=', 'void');
             $paid = PaymentAllocation::whereHas('bill', fn ($q) => $q->where('water_provider_id', $providerId)->where('status', '!=', 'void'))->sum('amount');
             $data += [
+                'financialTrend' => $request->user()->can('billing.view') ? $trends->financial(
+                    Bill::where('water_provider_id', $providerId),
+                    $request->user()->can('payments.view') ? Payment::where('water_provider_id', $providerId) : null,
+                ) : [],
+                'consumptionTrend' => $trends->consumption(MeterReading::where('water_provider_id', $providerId)),
                 'consumerCount' => $consumers->count(),
                 'activeConnections' => (clone $connections)->where('status', 'active')->count(),
                 'disconnectedConnections' => (clone $connections)->where('status', 'disconnected')->count(),

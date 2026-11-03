@@ -8,7 +8,7 @@
                 <flux:heading level="2" size="lg">Billing periods</flux:heading>
                 <form method="POST" action="{{ route('provider.periods.store') }}" class="flex flex-wrap items-end gap-3">
                     @csrf
-                    <flux:input placeholder="Select a billing month" name="period_month" type="month" label="Billing month" required />
+                    <x-month-input name="period_month" label="Billing month" required />
                     <flux:input placeholder="Select the due date" name="due_at" type="date" label="Due date" required />
                     <flux:button type="submit">Create billing period</flux:button>
                 </form>
@@ -42,7 +42,7 @@
                                 <option value="{{ $connection->id }}" @selected(request('connection') == $connection->id)>{{ $connection->number }}</option>
                             @endforeach
                         </flux:select>
-                        <flux:input placeholder="Select a billing month" name="month" type="month" :value="request('month')" :label="__('Month')" required />
+                        <x-month-input name="month" :value="request('month')" :label="__('Month')" required />
                         <flux:button type="submit">{{ __('Preview bill') }}</flux:button>
                         @if ($preview)
                             <div class="w-full rounded-lg bg-brand-surface p-3 text-sm text-brand-ink dark:bg-zinc-800 dark:text-white">{{ __('Consumption') }}: {{ $preview['consumption'] }} m³ · {{ __('Total') }}: ₱{{ $preview['total'] }}</div>
@@ -79,11 +79,11 @@
                                     <option value="{{ $connection->id }}" @selected((old('_form') === 'create-bill' ? old('connection_id') : request('connection')) == $connection->id)>{{ $connection->number }}</option>
                                 @endforeach
                             </flux:select>
-                            <flux:input placeholder="Select a billing month" name="period_month" type="month" :value="old('_form') === 'create-bill' ? old('period_month') : request('month')" :label="__('Month')" required />
+                            <x-month-input name="period_month" :value="old('_form') === 'create-bill' ? old('period_month') : request('month')" :label="__('Month')" required />
                         </div>
                     </x-form-modal>
                     <x-form-modal name="create-batch-bills" :title="__('Generate monthly batch')" :description="__('Active connections with a reading for the month will be billed. Existing bills are skipped.')" :action="route('provider.bills.batch')" :submit-label="__('Generate monthly batch')">
-                        <flux:input placeholder="Select a billing month" name="period_month" type="month" :value="old('_form') === 'create-batch-bills' ? old('period_month') : null" :label="__('Month')" required />
+                        <x-month-input name="period_month" :value="old('_form') === 'create-batch-bills' ? old('period_month') : null" :label="__('Month')" required />
                     </x-form-modal>
                 @endcan
             </section>

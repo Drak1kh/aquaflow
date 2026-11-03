@@ -14,7 +14,6 @@
     x-data="{
         supported: false,
         loading: false,
-        error: null,
         updateSupport() {
             this.supported = Boolean(window.Passkeys?.isSupported());
         },
@@ -25,7 +24,6 @@
         },
         async verify() {
             this.loading = true;
-            this.error = null;
             try {
                 const response = await window.Passkeys.verify({
                     routes: {
@@ -36,7 +34,7 @@
                 Livewire.navigate(response.redirect || '/dashboard');
             } catch (e) {
                 if (e.constructor?.name !== 'UserCancelledError') {
-                    this.error = e.message;
+                    $flux.toast({ text: e.message, variant: 'danger', duration: 0 });
                 }
             } finally {
                 this.loading = false;
@@ -57,8 +55,6 @@
                     <span x-show="!loading">{{ $label }}</span>
                     <span x-show="loading" x-cloak>{{ $loadingLabel }}</span>
                 </flux:button>
-                <p x-show="error" x-text="error" x-cloak
-                   class="text-sm text-center text-red-600 dark:text-red-400"></p>
             </div>
 
             <div class="relative my-6">
