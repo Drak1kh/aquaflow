@@ -1,3 +1,5 @@
+import './page-loading.js';
+
 const landingPage = document.querySelector('body.landing');
 
 if (landingPage && 'IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {

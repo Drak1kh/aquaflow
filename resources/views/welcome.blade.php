@@ -47,6 +47,7 @@
         </div>
     </header>
 
+    <x-page-loading class="[&>[data-page-loading]]:mx-auto [&>[data-page-loading]]:max-w-6xl [&>[data-page-loading]]:p-6">
     <main id="main">
         <section class="landing-hero" aria-labelledby="hero-title">
             <div class="landing-container landing-hero-grid">
@@ -169,6 +170,7 @@
 
         <section class="landing-cta" aria-labelledby="cta-title"><div class="landing-container landing-cta-inner"><div><h2 id="cta-title">Ready for smarter water management?</h2><p>Ask your provider or AquaFlow administrator for access to your account.</p></div><div class="landing-cta-actions">@auth<a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>@else<a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in to AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a><a href="{{ route('login') }}">Sign in</a>@endauth</div></div></section>
     </main>
+    </x-page-loading>
 
     <footer class="landing-footer">
         <div class="landing-container landing-footer-grid">

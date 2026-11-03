@@ -1,3 +1,3 @@
 <x-layouts::auth.split :title="$title ?? null">
-    {{ $slot }}
+    <x-page-loading variant="form">{{ $slot }}</x-page-loading>
 </x-layouts::auth.split>

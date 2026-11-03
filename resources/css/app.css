@@ -8,6 +8,15 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@media (prefers-reduced-motion: reduce) {
+    [data-flux-skeleton], [data-flux-skeleton-line], [data-flux-skeleton]::before, [data-flux-skeleton-line]::before { animation: none !important; }
+}
+
+@media print {
+    [data-page-loading] { display: none !important; }
+    [data-page-content] { display: block !important; }
+}
+
 @theme {
     --color-brand-ink: #062e68;
     --color-brand-ocean: #063e91;

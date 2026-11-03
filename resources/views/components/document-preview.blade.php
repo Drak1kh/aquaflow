@@ -45,7 +45,10 @@
             </div>
         </header>
         <div class="relative min-h-0 flex-1 bg-white">
-            <div x-show="loading" class="flex h-full items-center justify-center text-sm text-zinc-600" role="status">{{ __('Loading document…') }}</div>
+            <div x-show="loading" class="h-full overflow-y-auto p-6" role="status">
+                <span class="sr-only">{{ __('Loading document…') }}</span>
+                <x-page-skeleton variant="document" />
+            </div>
             <div x-cloak x-show="url && !loading && !ready" class="flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-zinc-700">
                 <p>{{ __('This document could not be loaded. Please reopen it or check your access.') }}</p>
                 <a x-bind:href="url" class="rounded-sm font-medium text-zinc-900 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4">{{ __('Open document') }}</a>
