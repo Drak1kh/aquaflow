@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Gate::define('access-super-admin', fn (User $user): bool => $user->hasRole(UserRole::SuperAdmin));
-        Gate::define('access-water-provider', fn (User $user): bool => $user->hasRole(UserRole::WaterProvider));
+        Gate::define('access-water-provider', fn (User $user): bool => in_array($user->role, [UserRole::Admin, UserRole::Staff], true));
         Gate::define('access-consumer', fn (User $user): bool => $user->hasRole(UserRole::Consumer));
         Gate::define('permission', fn (User $user, string $permission): bool => $user->hasPermission($permission));
 

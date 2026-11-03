@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['water_provider_id', 'consumer_id', 'number', 'meter_number', 'status', 'installed_at'])]
 class Connection extends Model
@@ -24,6 +25,12 @@ class Connection extends Model
     public function consumer(): BelongsTo
     {
         return $this->belongsTo(Consumer::class);
+    }
+
+    /** @return HasOne<ServiceEvent, $this> */
+    public function latestServiceEvent(): HasOne
+    {
+        return $this->hasOne(ServiceEvent::class)->latestOfMany();
     }
 
     /** @return HasMany<MeterReading, $this> */

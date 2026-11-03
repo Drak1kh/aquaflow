@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Models\Bill;
+use App\Models\BillingPeriod;
 use App\Models\Connection;
 use App\Models\MeterReading;
 use App\Models\User;
@@ -43,7 +44,8 @@ class BillingService
             'consumption' => $consumption,
             'consumption_charge' => $consumptionCharge,
             'total' => bcadd($rate->base_charge, $consumptionCharge, 2),
-            'due_at' => $month->endOfMonth()->addDays((int) $this->settings->numberForProvider($provider, 'due_days'))->toDateString(),
+            'due_at' => BillingPeriod::where('water_provider_id', $provider->id)->whereDate('period_month', $month->toDateString())->first()?->due_at->toDateString()
+                ?? $month->endOfMonth()->addDays((int) $this->settings->numberForProvider($provider, 'due_days'))->toDateString(),
         ];
     }
 

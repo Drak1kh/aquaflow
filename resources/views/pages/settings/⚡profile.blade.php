@@ -14,6 +14,7 @@ new #[Title('Profile settings')] class extends Component {
 
     public string $name = '';
     public string $email = '';
+    public string $phone = '';
 
     /**
      * Mount the component.
@@ -22,6 +23,7 @@ new #[Title('Profile settings')] class extends Component {
     {
         $this->name = Auth::user()->name;
         $this->email = Auth::user()->email;
+        $this->phone = Auth::user()->consumer?->phone ?? '';
     }
 
     /**
@@ -31,7 +33,12 @@ new #[Title('Profile settings')] class extends Component {
     {
         $user = Auth::user();
 
-        $validated = $this->validate($this->profileRules($user->id));
+        $validated = $this->validate([...$this->profileRules($user->id), 'phone' => ['nullable', 'string', 'max:50']]);
+        unset($validated['phone']);
+        if ($user->consumer) {
+            $validated['name'] = $user->name;
+            $user->consumer->update(['phone' => $this->phone, 'email' => $validated['email']]);
+        }
 
         $user->fill($validated);
 
@@ -99,9 +106,12 @@ new #[Title('Profile settings')] class extends Component {
                     <flux:heading size="lg">{{ __('Edit profile') }}</flux:heading>
                     <flux:text class="mt-2">{{ __('Update your name and email address.') }}</flux:text>
                 </div>
-                <flux:input wire:model="name" :label="__('Name')" type="text" required autocomplete="name" />
+                <flux:input :readonly="Auth::user()->consumer_id !== null" wire:model="name" :label="__('Name')" type="text" required autocomplete="name" />
                 <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
 
+                @if (Auth::user()->consumer_id)
+                    <flux:input wire:model="phone" label="Contact number" type="tel" />
+                @endif
                 @if ($this->hasUnverifiedEmail)
                     <div>
                         <flux:text>

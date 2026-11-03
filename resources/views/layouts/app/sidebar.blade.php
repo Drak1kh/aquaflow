@@ -1,5 +1,6 @@
+@props(['title' => null])
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
@@ -12,7 +13,7 @@
             return [...document.querySelectorAll('[data-flux-sidebar-item]')].some(item => this.matchesSidebarItem(item.textContent));
         },
     }">
-        <flux:sidebar sticky collapsible class="border-e border-zinc-200 bg-zinc-50 transition-[width,padding,transform] duration-300 ease-in-out motion-reduce:transition-none dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible class="aquaflow-sidebar border-e border-zinc-200 bg-brand-surface transition-[width,padding,transform] duration-300 ease-in-out motion-reduce:transition-none dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <a href="{{ route('dashboard') }}" wire:navigate aria-label="{{ __('AquaFlow dashboard') }}" class="relative flex h-16 min-w-0 flex-1 items-center overflow-hidden in-data-flux-sidebar-collapsed-desktop:mx-auto in-data-flux-sidebar-collapsed-desktop:w-10 in-data-flux-sidebar-collapsed-desktop:flex-none">
                     <img src="{{ asset('assets/aquaflow-banner-image.png') }}" alt="AquaFlow" class="absolute left-0 -top-1 w-[232px] max-w-none in-data-flux-sidebar-collapsed-desktop:hidden" />
@@ -51,20 +52,31 @@
                 <flux:sidebar.item icon="house" :href="route('dashboard')" :current="request()->routeIs('dashboard', 'dashboard.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
-                @if (auth()->user()->role === \App\UserRole::SuperAdmin)
-                    <flux:sidebar.item icon="users" :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Users') }}</flux:sidebar.item>
-                    <flux:sidebar.item icon="building-office" :href="route('admin.providers.index')" :current="request()->routeIs('admin.providers.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Providers') }}</flux:sidebar.item>
-                    <flux:sidebar.item icon="shield-check" :href="route('admin.permissions.index')" :current="request()->routeIs('admin.permissions.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Roles & Permissions') }}</flux:sidebar.item>
-                    <flux:sidebar.item icon="document-text" :href="route('admin.billing.index')" :current="request()->routeIs('admin.billing.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Billing Oversight') }}</flux:sidebar.item>
-                    <flux:sidebar.item icon="credit-card" :href="route('admin.payments.index')" :current="request()->routeIs('admin.payments.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Payment Oversight') }}</flux:sidebar.item>
-                    <flux:sidebar.item icon="chart-bar" :href="route('admin.reports.index')" :current="request()->routeIs('admin.reports.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Reports') }}</flux:sidebar.item>
-                    <flux:sidebar.item icon="lifebuoy" :href="route('admin.tickets.index')" :current="request()->routeIs('admin.tickets.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Disputes') }}</flux:sidebar.item>
-                    <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings.index')" :current="request()->routeIs('admin.settings.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('System Settings') }}</flux:sidebar.item>
-                @elseif (auth()->user()->role === \App\UserRole::WaterProvider)
-                    <flux:sidebar.item icon="building-office" :href="route('dashboard.provider')" :current="request()->routeIs('provider.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('Provider Operations') }}</flux:sidebar.item>
+                @if (auth()->user()->role !== \App\UserRole::Consumer)
+                    @foreach ([
+                        'provider.consumers.index' => ['Consumer Management', 'users'],
+                        'provider.readings.index' => ['Meter Readings', 'chart-bar'],
+                        'provider.billing.index' => ['Billing Management', 'document-text'],
+                        'provider.payments.index' => ['Payment Management', 'credit-card'],
+                        'provider.balances.index' => ['Outstanding Balances', 'banknotes'],
+                        'provider.service.index' => ['Disconnection & Reconnection', 'arrows-right-left'],
+                        'provider.reports.billing' => ['Billing Reports', 'document-text'],
+                        'provider.reports.consumption' => ['Water Consumption Reports', 'chart-pie'],
+                    ] as $name => [$label, $icon])
+                        <flux:sidebar.item :icon="$icon" :href="route($name)" :current="request()->routeIs($name)" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __($label) }}</flux:sidebar.item>
+                    @endforeach
+                    @if (auth()->user()->role === \App\UserRole::Admin)
+                        <flux:separator class="my-3" />
+                        <flux:sidebar.item icon="users" :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Users</flux:sidebar.item>
+                        <flux:sidebar.item icon="cog-6-tooth" :href="route('provider.profile.edit')" :current="request()->routeIs('provider.profile.edit')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>Profile Settings</flux:sidebar.item>
+                    @endif
                 @else
-                    <flux:sidebar.item icon="lifebuoy" :href="route('dashboard.consumer')" :current="request()->routeIs('portal.*')" x-show="matchesSidebarItem($el.textContent)" wire:navigate>{{ __('My Account & Support') }}</flux:sidebar.item>
+                    @foreach (['account' => 'My Account', 'connection' => 'My Connection', 'bills' => 'My Bills', 'payments' => 'Payments'] as $section => $label)
+                        <flux:sidebar.item :href="route('portal.section', $section)">{{ __($label) }}</flux:sidebar.item>
+                    @endforeach
+                    <flux:sidebar.item :href="route('profile.edit')">Settings</flux:sidebar.item>
                 @endif
+
             </flux:sidebar.nav>
 
             <p x-cloak x-show="sidebarSearch.trim() !== '' && !sidebarHasResults" class="[x-cloak]:hidden px-3 text-sm text-zinc-500 in-data-flux-sidebar-collapsed-desktop:hidden dark:text-zinc-400">
@@ -88,14 +100,23 @@
                 'admin.reports.index', 'admin.reports.print' => __('Reports'),
                 'admin.tickets.index', 'admin.tickets.show' => __('Disputes'),
                 'admin.settings.index' => __('System Settings'),
+                'provider.consumers.index' => __('Consumer Management'),
+                'provider.readings.index' => __('Meter Readings'),
+                'provider.billing.index' => __('Billing Management'),
+                'provider.payments.index' => __('Payment Management'),
+                'provider.balances.index' => __('Outstanding Balances'),
+                'provider.service.index' => __('Disconnection & Reconnection'),
+                'provider.reports.billing' => __('Billing Reports'),
+                'provider.reports.consumption' => __('Water Consumption Reports'),
+                'provider.profile.edit' => __('Profile Settings'),
                 default => __('Dashboard'),
             };
         @endphp
 
-        <flux:header class="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:header class="aquaflow-header border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.toggle icon="menu" inset="left" />
 
-            <flux:breadcrumbs class="min-w-0">
+            <flux:breadcrumbs class="hidden min-w-0 md:flex">
                 <flux:breadcrumbs.item :href="route('dashboard')" icon="house" wire:navigate>{{ __('Main') }}</flux:breadcrumbs.item>
                 @if (request()->routeIs('dashboard', 'dashboard.*'))
                     <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>
@@ -108,11 +129,11 @@
             <flux:spacer />
 
             <flux:tooltip :content="__('Toggle appearance')" position="bottom">
-                <flux:button variant="ghost" size="sm" icon="moon" icon:variant="outline" aria-label="{{ __('Toggle appearance') }}" x-data x-on:click="$flux.appearance = $flux.appearance === 'dark' ? 'light' : 'dark'" />
+                <flux:button class="min-h-11 min-w-11" variant="ghost" size="sm" icon="moon" icon:variant="outline" aria-label="{{ __('Toggle appearance') }}" x-data x-on:click="$flux.appearance = $flux.appearance === 'dark' ? 'light' : 'dark'" />
             </flux:tooltip>
 
             <flux:dropdown position="bottom" align="end">
-                <flux:button variant="ghost" size="sm" icon="bell" icon:variant="outline" aria-label="{{ __('Notifications') }}" />
+                <flux:button class="min-h-11 min-w-11" variant="ghost" size="sm" icon="bell" icon:variant="outline" aria-label="{{ __('Notifications') }}" />
 
                 <flux:menu>
                     <div class="px-3 py-2 text-sm text-zinc-500 dark:text-white/80">{{ __('No notifications yet') }}</div>
@@ -121,6 +142,7 @@
 
             <flux:dropdown position="bottom" align="end">
                 <flux:profile
+                    class="min-h-11 [&>span]:hidden md:[&>span]:inline"
                     :initials="auth()->user()->initials()"
                     :name="auth()->user()->name"
                     icon:trailing="chevron-down"

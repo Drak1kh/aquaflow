@@ -58,6 +58,27 @@ class Bill extends Model
         return $this->hasMany(PaymentAllocation::class);
     }
 
+    /** @return HasMany<BillAdjustment, $this> */
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(BillAdjustment::class);
+    }
+
+    public function paymentStatus(): string
+    {
+        if ($this->status === 'void') {
+            return 'Void';
+        }
+        if (bccomp($this->balance(), '0', 2) <= 0) {
+            return 'Paid';
+        }
+        if ($this->due_at->isBefore(today())) {
+            return 'Overdue';
+        }
+
+        return bccomp($this->balance(), $this->total, 2) < 0 ? 'Partially Paid' : 'Unpaid';
+    }
+
     /** @return numeric-string */
     public function balance(): string
     {

@@ -9,6 +9,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+    --color-brand-ink: #062e68;
+    --color-brand-ocean: #063e91;
+    --color-brand-primary: #0869cf;
+    --color-brand-aqua: #079ee9;
+    --color-brand-mist: #bdecf8;
+    --color-brand-surface: #f7fcfe;
     --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
     --color-zinc-50: #fafafa;
@@ -375,4 +381,76 @@ html:has(> body.landing) { scroll-behavior: smooth; }
     html:has(> body.landing) { scroll-behavior: auto; }
     .landing .landing-button:hover, .landing .landing-feature-grid article:hover { transform: none; }
     .landing .landing-button, .landing .landing-feature-grid article { transition-property: background-color, border-color, color; }
+}
+
+/* Keep provider navigation legible at full width and usable when collapsed. */
+.aquaflow-sidebar [data-flux-sidebar-item] {
+    min-height: 2.75rem;
+    height: auto;
+    padding-block: 0.625rem;
+    margin-block: 0.125rem;
+    color: var(--color-brand-ink);
+    border-color: transparent;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.aquaflow-sidebar [data-flux-sidebar-item] [data-content] {
+    white-space: normal;
+    line-height: 1.4;
+}
+
+.aquaflow-sidebar [data-flux-sidebar-item]:hover {
+    background-color: color-mix(in srgb, var(--color-brand-mist) 30%, transparent);
+    color: var(--color-brand-ocean);
+}
+
+.aquaflow-sidebar [data-flux-sidebar-item][data-current] {
+    background-color: color-mix(in srgb, var(--color-brand-mist) 50%, transparent);
+    color: var(--color-brand-ocean);
+    border-color: color-mix(in srgb, var(--color-brand-aqua) 25%, transparent);
+    box-shadow: none;
+}
+
+.aquaflow-sidebar [data-flux-sidebar-item]:focus-visible {
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 2px;
+}
+
+.dark .aquaflow-sidebar [data-flux-sidebar-item] {
+    color: #d4d4d4;
+}
+
+.dark .aquaflow-sidebar [data-flux-sidebar-item]:hover {
+    color: var(--color-brand-surface);
+    background-color: #ffffff0d;
+}
+
+.dark .aquaflow-sidebar [data-flux-sidebar-item][data-current] {
+    color: var(--color-brand-mist);
+    background-color: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+    border-color: color-mix(in srgb, var(--color-brand-aqua) 40%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aquaflow-sidebar [data-flux-sidebar-item] {
+        transition: none;
+    }
+}
+
+.provider-page { overflow-wrap: anywhere; }
+.provider-page a:not([data-flux-button]):not([data-flux-pagination] *) {
+    color: var(--color-brand-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+.dark .provider-page a:not([data-flux-button]):not([data-flux-pagination] *) { color: var(--color-brand-mist); }
+.provider-page a:focus-visible, .provider-page summary:focus-visible {
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 3px;
+}
+@media (max-width: 639px) {
+    .provider-page [data-flux-button], .provider-page summary { min-height: 44px; }
+    .provider-page td > a { display: inline-flex; align-items: center; min-height: 44px; margin-inline-end: 0.5rem; }
+    .provider-page input, .provider-page select, .provider-page textarea { font-size: 16px; }
+    .provider-page form.flex > [data-flux-field] { min-width: 0; width: 100%; }
 }

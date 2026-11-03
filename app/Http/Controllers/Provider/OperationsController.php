@@ -8,10 +8,12 @@ use App\Actions\PaymentService;
 use App\Actions\PlatformSettings;
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
+use App\Models\BillingPeriod;
 use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\MeterReading;
 use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Models\SupportTicket;
 use App\Models\TicketMessage;
 use App\Models\User;
@@ -23,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -32,38 +35,83 @@ class OperationsController extends Controller
 {
     public function index(Request $request, BillingService $billing): View
     {
+        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'period' => ['nullable', 'date_format:Y-m'], 'edit_consumer' => ['nullable', 'integer'], 'portal_consumer' => ['nullable', 'integer'], 'reject_payment' => ['nullable', 'integer']]);
         $providerId = $request->user()->water_provider_id;
-        $connections = Connection::with('consumer')->where('water_provider_id', $providerId)->orderBy('number')->get();
-        $preview = null;
+        $module = $request->route()->defaults['module'] ?? 'dashboard';
+        $data = ['provider' => $request->user()->waterProvider];
+        $search = '%'.$request->input('search', '').'%';
+        $consumers = Consumer::where('water_provider_id', $providerId)->when($request->filled('search'), fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)));
+        $connections = Connection::with('consumer')->where('water_provider_id', $providerId)->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)));
+        $bills = Bill::where('water_provider_id', $providerId)->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)));
 
-        if ($request->filled(['connection', 'month'])) {
-            $request->validate(['connection' => ['required', 'integer'], 'month' => ['required', 'date_format:Y-m']]);
-            $connection = $connections->firstWhere('id', $request->integer('connection'));
-            abort_if($connection === null, 404);
-            $preview = $billing->preview($connection, $request->string('month').'-01');
+        if ($module === 'dashboard') {
+            $validBills = Bill::where('water_provider_id', $providerId)->where('status', '!=', 'void');
+            $paid = PaymentAllocation::whereHas('bill', fn ($q) => $q->where('water_provider_id', $providerId)->where('status', '!=', 'void'))->sum('amount');
+            $data += [
+                'consumerCount' => $consumers->count(),
+                'activeConnections' => (clone $connections)->where('status', 'active')->count(),
+                'disconnectedConnections' => (clone $connections)->where('status', 'disconnected')->count(),
+                'monthlyBills' => (clone $validBills)->whereDate('period_month', now()->startOfMonth()->toDateString())->count(),
+                'unpaidCount' => (clone $validBills)->whereRaw('total > (select coalesce(sum(amount), 0) from payment_allocations where bill_id = bills.id)')->count(),
+                'outstanding' => bcsub((string) $validBills->sum('total'), (string) $paid, 2),
+                'monthlyConsumption' => MeterReading::where('water_provider_id', $providerId)->whereDate('period_month', now()->startOfMonth()->toDateString())->selectRaw('COALESCE(SUM(current_reading - previous_reading), 0) as usage_total')->first()->usage_total,
+                'collected' => Payment::where('water_provider_id', $providerId)->where('status', 'verified')->sum('amount'),
+                'bills' => $bills->with(['consumer', 'allocations'])->latest('id')->limit(5)->get(),
+                'payments' => Payment::where('water_provider_id', $providerId)->latest('id')->limit(5)->get(),
+            ];
+        } elseif ($module === 'consumers') {
+            $selectedId = $request->input('edit_consumer') ?? $request->input('portal_consumer');
+            $selected = $selectedId ? Consumer::with('portalUser')->where('water_provider_id', $providerId)->findOrFail($selectedId) : null;
+            $data += ['consumers' => $consumers->with('portalUser')->orderBy('name')->paginate(20)->withQueryString(), 'selectedConsumer' => $selected];
+        } elseif ($module === 'readings') {
+            $history = MeterReading::with('connection.consumer')->where('water_provider_id', $providerId)
+                ->when($request->filled('search'), fn ($q) => $q->whereHas('connection.consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)))
+                ->when($request->filled('period'), fn ($q) => $q->whereDate('period_month', $request->input('period').'-01'))
+                ->select('meter_readings.*')
+                ->selectSub(Bill::selectRaw('count(*)')->whereColumn('meter_reading_id', 'meter_readings.id'), 'bill_count')
+                ->selectSub(MeterReading::from('meter_readings as later')->selectRaw('count(*)')->whereColumn('later.connection_id', 'meter_readings.connection_id')->whereColumn('later.period_month', '>', 'meter_readings.period_month'), 'later_count');
+            $data += [
+                'consumers' => $consumers->orderBy('name')->limit(50)->get(),
+                'connections' => $connections->when($request->filled('period'), fn ($q) => $q->whereHas('readings', fn ($q) => $q->whereDate('period_month', $request->input('period').'-01')))->orderBy('number')->paginate(20, ['*'], 'connections_page')->withQueryString(),
+                'connectionChoices' => Connection::with('consumer')->where('water_provider_id', $providerId)->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)))->orderBy('number')->limit(50)->get(),
+                'history' => $history->latest('period_month')->latest('id')->paginate(20, ['*'], 'readings_page')->withQueryString(),
+            ];
+        } elseif ($module === 'billing') {
+            $preview = null;
+            if ($request->filled(['connection', 'month'])) {
+                $request->validate(['connection' => ['required', 'integer'], 'month' => ['required', 'date_format:Y-m']]);
+                $connection = Connection::where('water_provider_id', $providerId)->findOrFail($request->input('connection'));
+                $preview = $billing->preview($connection, $request->input('month').'-01');
+            }
+            $data += [
+                'connections' => $connections->orderBy('number')->limit(50)->get(), 'preview' => $preview,
+                'periods' => BillingPeriod::where('water_provider_id', $providerId)->latest('period_month')->paginate(12, ['*'], 'periods_page')->withQueryString(),
+                'rates' => WaterRate::where('water_provider_id', $providerId)->latest('effective_from')->limit(8)->get(),
+                'bills' => $bills->with(['consumer', 'allocations'])->latest('id')->paginate(20)->withQueryString(),
+            ];
+        } elseif ($module === 'payments') {
+            $payments = Payment::with('consumer')->where('water_provider_id', $providerId)->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)));
+            $data += [
+                'payments' => $payments->latest('id')->paginate(20)->withQueryString(),
+                'bills' => (clone $bills)->with(['consumer', 'allocations', 'adjustments'])->latest('id')->paginate(20, ['*'], 'bills_page')->withQueryString(),
+                'billChoices' => (clone $bills)->with('consumer')->withSum('allocations', 'amount')->where('status', '!=', 'void')->whereRaw('total > (select coalesce(sum(amount), 0) from payment_allocations where bill_id = bills.id)')->latest('id')->limit(50)->get(),
+                'selectedPayment' => $request->filled('reject_payment') ? Payment::where('water_provider_id', $providerId)->findOrFail($request->input('reject_payment')) : null,
+            ];
         }
 
-        return view('provider.operations', [
-            'provider' => $request->user()->waterProvider,
-            'consumers' => Consumer::where('water_provider_id', $providerId)->with('portalUser')->orderBy('name')->get(),
-            'connections' => $connections,
-            'rates' => WaterRate::where('water_provider_id', $providerId)->latest('effective_from')->limit(8)->get(),
-            'bills' => Bill::with(['consumer', 'allocations'])->where('water_provider_id', $providerId)->latest('id')->limit(30)->get(),
-            'payments' => Payment::with('consumer')->where('water_provider_id', $providerId)->latest('id')->limit(30)->get(),
-            'tickets' => SupportTicket::with('consumer')->where('water_provider_id', $providerId)->latest('id')->limit(20)->get(),
-            'preview' => $preview,
-        ]);
+        return view('provider.'.$module, $data);
     }
 
     public function consumer(Request $request, AuditLogger $audit): RedirectResponse
     {
         $data = $request->validate([
-            'account_number' => ['required', 'string', 'max:80', Rule::unique('consumers')->where('water_provider_id', $request->user()->water_provider_id)],
+            'account_number' => ['nullable', 'string', 'max:80', Rule::unique('consumers')->where('water_provider_id', $request->user()->water_provider_id)],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['required', 'string', 'max:2000'],
         ]);
+        $data['account_number'] = $data['account_number'] ?? 'C-'.Str::ulid();
         $consumer = Consumer::create([...$data, 'water_provider_id' => $request->user()->water_provider_id]);
         $audit->record($consumer, 'consumer.created', $request->user(), after: $data);
 
@@ -92,6 +140,7 @@ class OperationsController extends Controller
             $user = User::create(['name' => $consumer->name, 'email' => $data['email'], 'password' => $data['password']]);
             $user->role = UserRole::Consumer;
             $user->consumer_id = $consumer->id;
+            $user->email_verified_at = now();
             $user->must_change_password = true;
             $user->save();
             $audit->record($user, 'consumer.portal_activated', $request->user(), after: ['consumer_id' => $consumer->id]);
@@ -120,33 +169,38 @@ class OperationsController extends Controller
         $data = $request->validate([
             'connection_id' => ['required', Rule::exists('connections', 'id')->where('water_provider_id', $request->user()->water_provider_id)],
             'period_month' => ['required', 'date_format:Y-m'],
-            'current_reading' => ['required', 'numeric', 'min:0'],
+            'current_reading' => ['required', 'decimal:0,3', 'min:0'],
+            'previous_reading' => ['nullable', 'decimal:0,3', 'min:0'],
         ]);
-        $month = CarbonImmutable::parse($data['period_month'].'-01')->toDateString();
-        if (MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', $month)->exists()) {
-            throw ValidationException::withMessages(['period_month' => 'A reading already exists for this month.']);
-        }
-        if (MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', '>', $month)->exists()) {
-            throw ValidationException::withMessages(['period_month' => 'Record readings in chronological order.']);
-        }
-        $lastReading = MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', '<', $month)->latest('period_month')->first();
-        $previous = $lastReading ? $lastReading->current_reading : '0.000';
+        DB::transaction(function () use ($data, $request, $audit): void {
+            Connection::whereKey($data['connection_id'])->lockForUpdate()->firstOrFail();
+            $month = CarbonImmutable::parse($data['period_month'].'-01')->toDateString();
+            if (MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', $month)->exists()) {
+                throw ValidationException::withMessages(['period_month' => 'A reading already exists for this month.']);
+            }
+            if (MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', '>', $month)->exists()) {
+                throw ValidationException::withMessages(['period_month' => 'Record readings in chronological order.']);
+            }
+            $lastReading = MeterReading::where('connection_id', $data['connection_id'])->whereDate('period_month', '<', $month)->latest('period_month')->first();
+            $previous = $lastReading ? $lastReading->current_reading : ($data['previous_reading'] ?? '0.000');
 
-        $current = (string) $data['current_reading'];
-        if (! is_numeric($current)) {
-            throw ValidationException::withMessages(['current_reading' => 'Enter a valid meter reading.']);
-        }
+            $current = (string) $data['current_reading'];
+            if (! is_numeric($current)) {
+                throw ValidationException::withMessages(['current_reading' => 'Enter a valid meter reading.']);
+            }
 
-        if (bccomp($current, $previous, 3) < 0) {
-            throw ValidationException::withMessages(['current_reading' => 'The reading cannot be lower than the previous reading.']);
-        }
+            if (bccomp($current, $previous, 3) < 0) {
+                throw ValidationException::withMessages(['current_reading' => 'The reading cannot be lower than the previous reading.']);
+            }
 
-        $reading = MeterReading::create([
-            'connection_id' => $data['connection_id'], 'water_provider_id' => $request->user()->water_provider_id,
-            'period_month' => $month, 'previous_reading' => $previous,
-            'current_reading' => $data['current_reading'], 'recorded_by' => $request->user()->id,
-        ]);
-        $audit->record($reading, 'reading.recorded', $request->user(), after: ['current_reading' => $reading->current_reading]);
+            $reading = MeterReading::create([
+                'connection_id' => $data['connection_id'], 'water_provider_id' => $request->user()->water_provider_id,
+                'period_month' => $month, 'previous_reading' => $previous,
+                'current_reading' => $data['current_reading'], 'recorded_by' => $request->user()->id,
+            ]);
+            $audit->record($reading, 'reading.recorded', $request->user(), after: ['current_reading' => $reading->current_reading]);
+
+        });
 
         return back()->with('status', 'Reading recorded.');
     }
@@ -209,7 +263,7 @@ class OperationsController extends Controller
         $data = $request->validate([
             'bill_id' => ['required', Rule::exists('bills', 'id')->where('water_provider_id', $providerId)],
             'reference' => ['required', 'string', 'max:80', Rule::unique('payments')->where('water_provider_id', $providerId)],
-            'amount' => ['required', 'numeric', 'gt:0'],
+            'amount' => ['required', 'decimal:0,2', 'gt:0'],
             'method' => ['required', Rule::in(['cash', 'bank_transfer', 'e_wallet', 'other'])],
             'paid_at' => ['required', 'date'],
             'remarks' => ['nullable', 'string', 'max:2000'],
@@ -242,11 +296,14 @@ class OperationsController extends Controller
     {
         $this->scope($request, $payment);
         $data = $request->validate(['remarks' => ['required', 'string', 'max:2000']]);
-        abort_unless($payment->status === 'pending', 422);
-        $payment->status = 'rejected';
-        $payment->remarks = $data['remarks'];
-        $payment->save();
-        $audit->record($payment, 'payment.rejected', $request->user(), after: ['remarks' => $data['remarks']]);
+        DB::transaction(function () use ($payment, $data, $request, $audit): void {
+            $payment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            abort_unless($payment->status === 'pending', 422);
+            $payment->status = 'rejected';
+            $payment->remarks = $data['remarks'];
+            $payment->save();
+            $audit->record($payment, 'payment.rejected', $request->user(), after: ['remarks' => $data['remarks']]);
+        });
 
         return back()->with('status', 'Payment rejected.');
     }

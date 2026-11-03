@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Consumer;
 use App\Actions\AuditLogger;
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
+use App\Models\MeterReading;
 use App\Models\Payment;
 use App\Models\SupportTicket;
 use App\Models\TicketMessage;
@@ -21,9 +22,16 @@ class TicketController extends Controller
     {
         $consumerId = $request->user()->consumer_id;
 
+        $bills = Bill::with('allocations')->where('consumer_id', $consumerId)->where('status', '!=', 'void')->latest('period_month')->get();
+        $latestReading = MeterReading::whereHas('connection', fn ($q) => $q->where('consumer_id', $consumerId))->latest('period_month')->first();
+        $nextBill = $bills->filter(fn ($bill) => bccomp($bill->balance(), '0', 2) > 0)->sortBy('due_at')->first();
+
         return view('consumer.portal', [
+            'currentBill' => $bills->first(fn ($bill) => $bill->period_month->format('Y-m') === now()->format('Y-m')),
+            'latestReading' => $latestReading,
+            'nextBill' => $nextBill,
             'consumer' => $request->user()->consumer,
-            'bills' => Bill::with('allocations')->where('consumer_id', $consumerId)->latest('id')->get(),
+            'bills' => $bills,
             'payments' => Payment::where('consumer_id', $consumerId)->latest('id')->get(),
             'tickets' => SupportTicket::where('consumer_id', $consumerId)->latest('id')->get(),
         ]);

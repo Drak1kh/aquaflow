@@ -50,6 +50,7 @@ class UserController extends Controller
         DB::transaction(function () use ($request, $data, $password, $audit): void {
             $user = User::create(['name' => $data['name'], 'email' => $data['email'], 'password' => $password]);
             $this->assignAccount($user, $data);
+            $user->email_verified_at = now();
             $user->must_change_password = true;
             $user->save();
             $audit->record($user, 'user.created', $request->user(), after: ['role' => $user->role->value, 'water_provider_id' => $user->water_provider_id, 'consumer_id' => $user->consumer_id]);
@@ -113,9 +114,7 @@ class UserController extends Controller
             'consumer_id' => ['nullable', 'integer', 'exists:consumers,id'],
         ]);
 
-        if ($data['role'] === UserRole::WaterProvider->value && empty($data['water_provider_id'])) {
-            throw ValidationException::withMessages(['water_provider_id' => 'Choose a provider for this account.']);
-        }
+        $data['water_provider_id'] = $request->user()->water_provider_id;
 
         if ($data['role'] === UserRole::Consumer->value && empty($data['consumer_id'])) {
             throw ValidationException::withMessages(['consumer_id' => 'Choose a consumer record for this account.']);
@@ -139,7 +138,7 @@ class UserController extends Controller
     private function guardLastAdmin(User $user, bool $removingAccess): void
     {
         if ($removingAccess && $user->role === UserRole::SuperAdmin && $user->is_active && User::where('role', UserRole::SuperAdmin->value)->where('is_active', true)->whereKeyNot($user->id)->lockForUpdate()->first(['id']) === null) {
-            throw ValidationException::withMessages(['role' => 'The last active Super Admin must remain active.']);
+            throw ValidationException::withMessages(['role' => 'The last active Admin must remain active.']);
         }
     }
 }

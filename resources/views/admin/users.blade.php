@@ -37,12 +37,6 @@
                             <option value="{{ $role->value }}" @selected(old('role') === $role->value)>{{ $role->label() }}</option>
                         @endforeach
                     </flux:select>
-                    <flux:select name="water_provider_id" :label="__('Provider for provider staff')">
-                        <option value="">{{ __('None') }}</option>
-                        @foreach ($providers as $provider)
-                            <option value="{{ $provider->id }}" @selected(old('water_provider_id') == $provider->id)>{{ $provider->name }}</option>
-                        @endforeach
-                    </flux:select>
                     <flux:select name="consumer_id" :label="__('Consumer record for portal users')" class="sm:col-span-2">
                         <option value="">{{ __('None') }}</option>
                         @foreach ($consumers as $consumer)
@@ -142,12 +136,6 @@
                         <flux:select name="role" :label="__('Role')" required>
                             @foreach (\App\UserRole::cases() as $role)
                                 <option value="{{ $role->value }}" @selected($selectedRole === $role->value)>{{ $role->label() }}</option>
-                            @endforeach
-                        </flux:select>
-                        <flux:select name="water_provider_id" :label="__('Provider for provider staff')">
-                            <option value="">{{ __('None') }}</option>
-                            @foreach ($providers as $provider)
-                                <option value="{{ $provider->id }}" @selected($selectedProvider == $provider->id)>{{ $provider->name }}</option>
                             @endforeach
                         </flux:select>
                         <flux:select name="consumer_id" :label="__('Consumer record for portal users')" class="sm:col-span-2">

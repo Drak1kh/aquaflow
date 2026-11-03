@@ -7,7 +7,6 @@ use App\UserRole;
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -50,5 +49,3 @@ Artisan::command('bills:apply-late-fees', function (BillingService $billing): in
 
     return Command::SUCCESS;
 })->purpose('Apply one late fee to eligible overdue bills');
-
-Schedule::command('bills:apply-late-fees')->dailyAt('00:15');
