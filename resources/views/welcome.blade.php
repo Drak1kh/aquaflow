@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="AquaFlow brings water billing, payment records, usage and support into one place for providers and consumers.">
+    <meta name="description" content="Manage meter readings, water bills, payment verification, and support in AquaFlow. Consumers can check bills and submit payment proof through their account.">
     <title>AquaFlow — Water Management System</title>
     <link rel="icon" href="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" type="image/png" sizes="96x96">
     @fonts
@@ -21,7 +21,7 @@
                 <img src="{{ asset('assets/aquaflow-banner-image.png') }}" alt="" width="866" height="288">
             </a>
             <nav class="landing-nav-links" aria-label="Main navigation">
-                <a href="#features">Features</a><a href="#audiences">Who it's for</a><a href="#how-it-works">How it works</a>
+                <a href="#features">Features</a><a href="#audiences">Who it's for</a><a href="#how-it-works">How it works</a><a href="/docs">Docs</a>
             </nav>
             <details class="landing-mobile-menu">
                 <summary aria-label="Toggle navigation menu">
@@ -40,8 +40,7 @@
                 @auth
                     <a class="landing-button landing-button-small" href="{{ route('dashboard') }}">Dashboard</a>
                 @else
-                    <a class="landing-sign-in" href="{{ route('login') }}">Sign in</a>
-                    <a class="landing-button landing-button-small" href="{{ route('login') }}">Open account <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
+                    <a class="landing-button landing-button-small" href="{{ route('login') }}">Sign in <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                 @endauth
             </div>
         </div>
@@ -52,123 +51,96 @@
         <section class="landing-hero" aria-labelledby="hero-title">
             <div class="landing-container landing-hero-grid">
                 <div class="landing-hero-copy">
-                    <p class="landing-hero-note"><span></span> Water operations, clearly connected</p>
-                    <h1 id="hero-title">Smarter water management.<br><em>Better service.</em> Every drop counts.</h1>
-                    <p class="landing-hero-lead">AquaFlow brings water consumption, billing, payment records, and support requests into one place for providers and consumers.</p>
+                    <h1 id="hero-title">Follow your water bill from reading to payment.</h1>
+                    <p class="landing-hero-lead">AquaFlow connects each water bill to its meter reading and payment history. Providers manage the records. Consumers can check what they owe and submit proof of payment.</p>
                     <div class="landing-hero-actions">
                         @auth
                             <a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @else
-                            <a class="landing-button landing-button-white" href="{{ route('login') }}">Get started <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
+                            <a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in to your account <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @endauth
-                        <a class="landing-button landing-button-ghost" href="#features">Explore AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-down" /></svg></a>
+                        <a class="landing-text-link" href="#how-it-works">See the billing steps <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-down" /></svg></a>
                     </div>
-                    <p class="landing-hero-trust">Accounts are created by your provider or AquaFlow administrator. Sign in with the details they gave you.</p>
+                    <p class="landing-hero-trust">Use the login details provided by your water provider or AquaFlow administrator.</p>
                 </div>
-                <div class="landing-preview-wrap">
-                    <div class="landing-preview-caption"><span>AquaFlow across your devices</span><strong>Illustrative preview</strong></div>
-                    <div class="landing-device-stage" role="img" aria-label="Illustrative AquaFlow dashboard on a laptop, billing on a tablet, and service alerts on a phone">
-                        <div class="landing-device-laptop" aria-hidden="true">
-                            <div class="landing-laptop-frame">
-                                <div class="landing-preview">
-                                    <div class="landing-preview-sidebar">
-                                        <div class="landing-preview-logo"><img src="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" alt="" width="25" height="25"> AquaFlow</div>
-                                        <span class="selected">Overview</span><span>Consumption</span><span>Billing</span><span>Service requests</span>
-                                    </div>
-                                    <div class="landing-preview-content">
-                                        <div class="landing-preview-top"><div><small>UTILITY OVERVIEW</small><strong>Good morning, Admin</strong></div><b>AF</b></div>
-                                        <div class="landing-preview-metrics"><div><small>Current consumption</small><strong>24.8 <span>m³</span></strong><em>This billing period</em></div><div><small>Collection rate</small><strong>94.6<span>%</span></strong><em>Monthly overview</em></div><div><small>Active consumers</small><strong>2,458</strong><em>Connected accounts</em></div></div>
-                                        <div class="landing-preview-chart">
-                                            <div><strong>Water consumption</strong><small>Monthly usage overview</small></div>
-                                            <svg viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
-                                                <path d="M0 27H460M0 75H460M0 122H460" stroke="#dfeaf4" stroke-width="1"/>
-                                                <path d="M0 110 C48 105 58 64 103 72 S169 117 219 82 S288 33 338 56 S402 79 460 26 V150H0Z" fill="#d9f4fc"/>
-                                                <path d="M0 110 C48 105 58 64 103 72 S169 117 219 82 S288 33 338 56 S402 79 460 26" fill="none" stroke="#079EE9" stroke-width="3" stroke-linecap="round"/>
-                                            </svg>
-                                            <div class="landing-preview-axis"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="landing-laptop-base"></div>
-                        </div>
-                        <div class="landing-device-tablet" aria-hidden="true">
-                            <div class="landing-tablet-camera"></div>
-                            <div class="landing-tablet-screen">
-                                <div class="landing-device-appbar"><img src="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" alt="" width="20" height="20"><span>AquaFlow</span></div>
-                                <span class="landing-device-screen-label">BILLING</span>
-                                <strong>Good afternoon, Maria</strong>
-                                <div class="landing-tablet-bill"><span>Current balance</span><b>₱1,240.00</b><small>Due October 28</small></div>
-                                <div class="landing-tablet-row"><span>Water usage</span><b>24.8 m³</b></div>
-                            </div>
-                        </div>
-                        <div class="landing-device-phone" aria-hidden="true">
-                            <div class="landing-phone-camera"></div>
-                            <div class="landing-phone-screen">
-                                <div class="landing-device-appbar"><img src="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" alt="" width="18" height="18"><span>AquaFlow</span></div>
-                                <span class="landing-device-screen-label">SERVICE UPDATE</span>
-                                <strong>Stay informed.</strong>
-                                <div class="landing-phone-notice"><span>Maintenance notice</span><b>Scheduled service update</b><p>Selected areas · 9 AM–12 PM</p></div>
-                                <div class="landing-phone-usage"><span>Current usage</span><b>24.8 m³</b></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="landing-highlights" aria-label="Platform highlights">
-            <div class="landing-container landing-highlights-grid">
-                <div><strong>Real-time monitoring</strong><p>Track water usage and system activity.</p></div>
-                <div><strong>Automated billing</strong><p>Simplify readings, bills, and payment tracking.</p></div>
-                <div><strong>Consumer access</strong><p>Keep account information within reach.</p></div>
-                <div><strong>Smart analytics</strong><p>Turn consumption data into useful insight.</p></div>
+                <figure class="landing-bill" aria-labelledby="sample-bill-title">
+                    <figcaption><h2 id="sample-bill-title">Example water bill</h2><p>Fictional readings and rates, shown to explain the calculation.</p></figcaption>
+                    <dl class="landing-bill-readings">
+                        <div><dt>Previous reading</dt><dd>100 <span>m³</span></dd></div>
+                        <div><dt>Current reading</dt><dd>115 <span>m³</span></dd></div>
+                        <div><dt>Water used</dt><dd>15 <span>m³</span></dd></div>
+                    </dl>
+                    <dl class="landing-bill-charges">
+                        <div><dt>Base charge</dt><dd>₱50.00</dd></div>
+                        <div><dt>Usage charge <span>15 m³ × ₱10.00</span></dt><dd>₱150.00</dd></div>
+                        <div class="landing-bill-total"><dt>Total bill</dt><dd>₱200.00</dd></div>
+                    </dl>
+                    <p class="landing-bill-note">Your bill uses your provider’s saved rates and readings. A submitted payment updates your balance after the provider verifies it.</p>
+                </figure>
             </div>
         </section>
 
         <section class="landing-section" id="features" aria-labelledby="features-title">
             <div class="landing-container">
-                <div class="landing-section-head"><div><h2 id="features-title">Everything you need to manage water smarter.</h2></div><p>AquaFlow is designed to connect the essential parts of water utility management in one easy-to-use place.</p></div>
+                <div class="landing-section-head"><h2 id="features-title">The records behind each water bill.</h2><p>Keep the reading, charges, payment decision, and account history together.</p></div>
                 <div class="landing-feature-grid">
-                    <article><span>USAGE</span><h3>Water consumption</h3><p>Monitor household and commercial usage, review history, and spot unusual changes.</p></article>
-                    <article><span>BILLING</span><h3>Billing & invoicing</h3><p>Calculate bills from meter readings, rates, and billing periods with less manual work.</p></article>
-                    <article><span>PAYMENTS</span><h3>Payment records</h3><p>Give consumers a clear view of balances and recorded payments.</p></article>
-                    <article><span>INSIGHTS</span><h3>Analytics & reports</h3><p>Understand consumption, collections, account activity, and operations at a glance.</p></article>
-                    <article><span>METERS</span><h3>Meter management</h3><p>Keep meters, readings, history, replacements, and assignments organized.</p></article>
-                    <article><span>UPDATES</span><h3>Alerts & notifications</h3><p>Share bill reminders, maintenance notices, interruptions, and announcements.</p></article>
+                    <article><h3>Consumers and meters</h3><p>Providers register consumers, add water connections and meters, and record monthly readings.</p></article>
+                    <article><h3>Monthly billing</h3><p>Generate individual bills or a monthly batch using saved readings, water rates, billing periods, and due dates.</p></article>
+                    <article><h3>Payment verification</h3><p>Record a received payment or review a consumer’s submission. Verified payments reduce the balance and have a receipt.</p></article>
+                    <article><h3>Balances and service actions</h3><p>Review unpaid bills and record notices, disconnections, and restorations. A payment does not automatically restore service.</p></article>
+                    <article><h3>Account updates</h3><p>Consumers receive notifications about bills, payments, service actions, and support responses in their portal.</p></article>
+                    <article><h3>Reports and history</h3><p>Review recorded consumption, billing, and payment activity through dashboards, account histories, and reports.</p></article>
                 </div>
-                <p class="landing-disclosure">These water management capabilities describe the planned AquaFlow platform. The current app is an early-stage preview.</p>
             </div>
         </section>
 
         <section class="landing-section landing-audiences" id="audiences" aria-labelledby="audiences-title">
             <div class="landing-container">
-                <div class="landing-section-head landing-section-head-centered"><h2 id="audiences-title">A better way to serve—and be served.</h2></div>
+                <div class="landing-section-head"><h2 id="audiences-title">One system, with access for each role.</h2><p>Your account opens the tools and records that belong to your role.</p></div>
                 <div class="landing-audience-grid">
-                    <article class="landing-audience-admin"><span>FOR UTILITY ADMINISTRATORS</span><h3>Run your water service from one clear view.</h3><p>Keep consumers, meters, billing, collections, reports, and service requests connected.</p><div class="landing-tags"><span>Consumer management</span><span>Meter readings</span><span>Billing</span><span>Reports</span></div><a href="#how-it-works">Explore admin features <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a></article>
-                    <article class="landing-audience-consumer"><span>FOR CONSUMERS</span><h3>Your water account, always within reach.</h3><p>Understand usage, view bills and payment history, report concerns, and stay informed.</p><div class="landing-tags"><span>Usage history</span><span>View bills</span><span>Service requests</span><span>Notifications</span></div><a href="{{ route('login') }}">Sign in to the preview <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a></article>
+                    <article><h3>Consumers</h3><p>Check your water usage, bills, balance, and payment history. Submit payment proof, read notifications, or send a support request.</p></article>
+                    <article><h3>Water Providers</h3><p>Manage consumers and connections, enter readings, set rates, generate bills, verify payments, and respond to account concerns.</p></article>
+                    <article><h3>Super Admins</h3><p>Manage providers, users, and permissions. Review billing and payment activity across providers and handle escalated concerns.</p></article>
                 </div>
             </div>
         </section>
 
-        <section class="landing-section landing-insight" aria-labelledby="insight-title">
-            <div class="landing-container landing-insight-grid">
-                <div><h2 id="insight-title">See the story behind your water usage.</h2><p>Clear consumption views can help households understand their patterns and give utilities a stronger basis for planning and service.</p><div class="landing-insight-caption"><strong>From readings to insight</strong><span>Usage history · Trends · Billing context</span></div></div>
-                <div class="landing-usage-card"><div class="landing-usage-top"><span>Consumption overview</span><span>Example</span></div><strong>24.8 <small>m³</small></strong><p>Current billing period <span>8.4% lower than last month</span></p><div class="landing-bars" aria-hidden="true"><i style="height:48%"></i><i style="height:65%"></i><i style="height:53%"></i><i style="height:79%"></i><i style="height:61%"></i><i style="height:92%"></i><i style="height:72%"></i><i style="height:59%"></i><i style="height:83%"></i><i style="height:68%"></i><i style="height:55%"></i><i style="height:74%"></i></div><div class="landing-bar-axis"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Nov</span></div></div>
+        <section class="landing-section" id="how-it-works" aria-labelledby="workflow-title">
+            <div class="landing-container">
+                <div class="landing-section-head"><h2 id="workflow-title">What happens from reading to receipt?</h2><p>Payment submission and payment verification are separate steps, so you can see where a payment stands.</p></div>
+                <ol class="landing-steps">
+                    <li><span>01</span><h3>Record the reading</h3><p>The provider enters the meter reading for the billing month.</p></li>
+                    <li><span>02</span><h3>Generate the bill</h3><p>AquaFlow calculates usage and charges using the saved readings and rates.</p></li>
+                    <li><span>03</span><h3>Submit payment proof</h3><p>The consumer pays through a method accepted by their provider, then submits the details and proof.</p></li>
+                    <li><span>04</span><h3>Review the payment</h3><p>The provider checks the submission and verifies or rejects it.</p></li>
+                    <li><span>05</span><h3>Check the balance</h3><p>A verified payment reduces the balance and has a receipt. A partial payment leaves the rest due.</p></li>
+                </ol>
+                <p class="landing-workflow-note">Providers can also record payments they receive. Those payments go through verification too.</p>
             </div>
         </section>
 
-        <section class="landing-section" id="how-it-works" aria-labelledby="workflow-title">
-            <div class="landing-container"><div class="landing-section-head"><div><h2 id="workflow-title">From meter reading to payment.</h2></div><p>Every step stays connected, making everyday work easier to follow.</p></div><ol class="landing-steps"><li><span>01</span><strong>Record</strong><p>Capture accurate meter readings.</p></li><li><span>02</span><strong>Calculate</strong><p>Apply consumption and charges.</p></li><li><span>03</span><strong>Bill</strong><p>Generate bills for each period.</p></li><li><span>04</span><strong>Pay</strong><p>Record customer payments.</p></li><li><span>05</span><strong>Analyze</strong><p>Review usage and collections.</p></li></ol></div>
-        </section>
-
         <section class="landing-section landing-service" aria-labelledby="service-title">
-            <div class="landing-container landing-service-grid"><div><h2 id="service-title">Report. Track. Resolve.</h2><p>Give consumers a straightforward way to report water concerns and give teams one place to follow them through.</p><div class="landing-tags"><span>Water leak</span><span>Low pressure</span><span>No supply</span><span>Meter issue</span><span>Billing concern</span></div></div><div class="landing-request-card"><div><strong>Service request</strong><span>Illustrative preview</span></div><h3>Low water pressure</h3><p>Submitted by a consumer</p><ol><li class="done">Submitted</li><li class="done">Assigned</li><li class="current">In progress</li><li>Resolved</li></ol><small>Your request is being reviewed by the service team.</small></div></div>
+            <div class="landing-container landing-service-grid">
+                <div><h2 id="service-title">Ask about a charge. Keep the reply with your request.</h2><p>Send a support request from your consumer account and follow the conversation in the same place. Your provider can respond, update the status, or escalate the concern for further review.</p></div>
+                <figure class="landing-request">
+                    <figcaption>Example support conversation · Fictional messages</figcaption>
+                    <h3>Question about my water bill</h3>
+                    <dl><div><dt>Consumer</dt><dd>My usage is higher this month. Could you check the reading on my bill?</dd></div><div><dt>Provider response</dt><dd>We’ve received your request and will review the recorded readings.</dd></div></dl>
+                    <p>Consumers can check replies and the request status in Help &amp; Support.</p>
+                </figure>
+            </div>
         </section>
 
-        <section class="landing-section landing-advisory" aria-labelledby="advisory-title"><div class="landing-container landing-advisory-grid"><div><h2 id="advisory-title">Important updates, right when they matter.</h2><p>AquaFlow can help utilities share billing reminders, maintenance schedules, service interruptions, payment confirmations, and community announcements.</p></div><div class="landing-advisory-card"><div><span>Service advisory</span><small>Example notification</small></div><h3>Scheduled maintenance</h3><p>Water service will temporarily be unavailable in selected areas from 9:00 AM to 12:00 PM.</p><span>Service updates · Maintenance</span></div></div></section>
-
-        <section class="landing-cta" aria-labelledby="cta-title"><div class="landing-container landing-cta-inner"><div><h2 id="cta-title">Ready for smarter water management?</h2><p>Ask your provider or AquaFlow administrator for access to your account.</p></div><div class="landing-cta-actions">@auth<a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>@else<a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in to AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a><a href="{{ route('login') }}">Sign in</a>@endauth</div></div></section>
+        <section class="landing-cta" aria-labelledby="cta-title">
+            <div class="landing-container landing-cta-inner">
+                <div><h2 id="cta-title">Access your AquaFlow account.</h2><p>Need login details? Contact your water provider or AquaFlow administrator.</p></div>
+                @auth
+                    <a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
+                @else
+                    <a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in to AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
+                @endauth
+            </div>
+        </section>
     </main>
     </x-page-loading>
 
@@ -178,7 +150,7 @@
                 <a class="landing-footer-banner" href="{{ route('home') }}" aria-label="AquaFlow home">
                     <img src="{{ asset('assets/aquaflow-banner-image.png') }}" alt="" width="866" height="288">
                 </a>
-                <p>Connecting water utilities and the communities they serve.</p>
+                <p>Meter readings, water bills, payment records, and support for providers and consumers.</p>
             </div>
             <nav class="landing-footer-links" aria-label="Explore">
                 <h2>Explore</h2>
@@ -197,7 +169,7 @@
         </div>
         <div class="landing-container landing-footer-bottom">
             <span>© {{ date('Y') }} AquaFlow Water Management System</span>
-            <span>Every drop counts.</span>
+
         </div>
     </footer>
 </body>
