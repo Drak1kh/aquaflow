@@ -3,6 +3,8 @@
 use App\Models\Bill;
 use App\Models\Connection;
 use App\Models\Consumer;
+use App\Models\MeterReading;
+use App\Models\Payment;
 use App\Models\ServiceEvent;
 use App\Models\User;
 use App\Models\WaterProvider;
@@ -52,8 +54,93 @@ test('locked readings and ineligible service actions are explained instead of of
     $bill = Bill::factory()->create(['due_at' => today()->addMonth()]);
     $staff = User::factory()->waterProvider()->create(['water_provider_id' => $bill->water_provider_id]);
 
-    $this->actingAs($staff)->get(route('provider.readings.index'))->assertOk()->assertSee('Locked:')->assertDontSee('action="'.route('provider.readings.update', $bill->meter_reading_id).'"', false);
+    $this->actingAs($staff)->get(route('provider.readings.index'))->assertOk()->assertSee('Bill Generated')->assertDontSee('action="'.route('provider.readings.update', $bill->meter_reading_id).'"', false);
     $this->get(route('provider.service.index'))->assertOk()->assertSee('No overdue balance:')->assertDontSee('<option value="disconnect">', false)->assertDontSee('<option value="notice">', false);
+});
+
+test('meter reading history presents its readings in a table', function () {
+    $reading = \App\Models\MeterReading::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $reading->water_provider_id]);
+
+    $this->actingAs($staff)->get(route('provider.readings.index'))
+        ->assertOk()
+        ->assertSee('Previous')
+        ->assertSee('Current')
+        ->assertSee('Usage (m³)')
+        ->assertDontSee('Correction')
+        ->assertDontSee('Correct reading');
+});
+
+test('meter readings show provider-wide KPIs and consumption trend', function () {
+    $this->travelTo('2026-11-05');
+    $provider = WaterProvider::factory()->create();
+    $activeConsumer = Consumer::factory()->create(['water_provider_id' => $provider->id]);
+    $activeConnection = Connection::factory()->create(['consumer_id' => $activeConsumer->id, 'status' => 'active']);
+    $inactiveConsumer = Consumer::factory()->create(['water_provider_id' => $provider->id]);
+    $inactiveConnection = Connection::factory()->create(['consumer_id' => $inactiveConsumer->id, 'status' => 'disconnected']);
+    MeterReading::factory()->create(['connection_id' => $activeConnection->id, 'period_month' => '2026-10-01', 'previous_reading' => '1.000', 'current_reading' => '6.000']);
+    MeterReading::factory()->create(['connection_id' => $inactiveConnection->id, 'period_month' => '2026-11-01', 'previous_reading' => '2.000', 'current_reading' => '9.000']);
+    MeterReading::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $provider->id]);
+
+    $response = $this->actingAs($staff)->get(route('provider.readings.index', ['search' => 'No matching consumer', 'period' => '2026-10']));
+
+    $response->assertOk()
+        ->assertSee('Recorded readings')
+        ->assertSee('Active connections')
+        ->assertSee('Not Active connections')
+        ->assertSee('Water consumption')
+        ->assertSee('data-meter-reading-summary', false)
+        ->assertDontSee('View monthly values')
+        ->assertViewHas('recordedReadingCount', 2)
+        ->assertViewHas('activeConnectionCount', 1)
+        ->assertViewHas('inactiveConnectionCount', 1);
+    expect(collect($response->viewData('consumptionTrend'))->firstWhere('month', 'Oct 2026')['consumption'])->toBe('5.000');
+    expect(collect($response->viewData('consumptionTrend'))->firstWhere('month', 'Nov 2026')['consumption'])->toBe('7.000');
+});
+
+test('meter readings link consumers and generated bills while pending readings remain informational', function () {
+    $bill = Bill::factory()->create();
+    $pendingConsumer = Consumer::factory()->create(['water_provider_id' => $bill->water_provider_id]);
+    $pendingConnection = Connection::factory()->create(['consumer_id' => $pendingConsumer->id]);
+    MeterReading::factory()->create(['connection_id' => $pendingConnection->id]);
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $bill->water_provider_id]);
+
+    $this->actingAs($staff)->get(route('provider.readings.index'))
+        ->assertOk()
+        ->assertSee(route('provider.consumers.index', ['search' => $bill->consumer->account_number]), false)
+        ->assertSee(route('provider.payments.index', ['bill' => $bill->id]), false)
+        ->assertSee('Bill Generated')
+        ->assertSee('Pending');
+});
+
+test('payment management shows the selected bill and only its payments', function () {
+    $bill = Bill::factory()->create();
+    $connection = Connection::findOrFail($bill->connection_id);
+    $payment = Payment::factory()->create(['bill_id' => $bill->id, 'reference' => 'PAY-SELECTED']);
+    $otherConsumer = Consumer::factory()->create(['water_provider_id' => $bill->water_provider_id]);
+    $otherConnection = Connection::factory()->create(['consumer_id' => $otherConsumer->id]);
+    $otherBill = Bill::factory()->create(['connection_id' => $otherConnection->id]);
+    Payment::factory()->create(['bill_id' => $otherBill->id, 'reference' => 'PAY-OTHER']);
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $bill->water_provider_id]);
+
+    $this->actingAs($staff)->get(route('provider.payments.index', ['bill' => $bill->id]))
+        ->assertOk()
+        ->assertSee($bill->number)
+        ->assertSee($connection->meter_number)
+        ->assertSee('name="bill" value="'.$bill->id.'"', false)
+        ->assertSee($payment->reference)
+        ->assertDontSee('PAY-OTHER');
+});
+
+test('payment management rejects a selected bill from another provider', function () {
+    $bill = Bill::factory()->create();
+    $otherBill = Bill::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $bill->water_provider_id]);
+
+    $this->actingAs($staff)->get(route('provider.payments.index', ['bill' => $otherBill->id]))
+        ->assertRedirect()
+        ->assertSessionHasErrors('bill');
 });
 
 test('search applies to connection tables and service history consistently', function () {
@@ -79,4 +166,39 @@ test('provider pages render one shared validation summary', function () {
 
     $response->assertOk();
     expect(substr_count($response->getContent(), 'data-form-feedback='))->toBe(1);
+});
+
+test('connection operations show provider-scoped financial and service context', function () {
+    $provider = WaterProvider::factory()->create();
+    $consumer = Consumer::factory()->create(['water_provider_id' => $provider->id]);
+    $active = Connection::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'status' => 'active']);
+    Connection::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'status' => 'disconnected']);
+    Connection::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'status' => 'pending_reconnection']);
+    $bill = Bill::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'connection_id' => $active->id, 'due_at' => today()->subDay(), 'total' => '100.00']);
+    Payment::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'bill_id' => $bill->id, 'status' => 'pending', 'reference' => 'PENDING-PROVIDER']);
+
+    $otherBill = Bill::factory()->create(['due_at' => today()->subDay(), 'total' => '900.00']);
+    Payment::factory()->create(['bill_id' => $otherBill->id, 'status' => 'pending', 'reference' => 'PENDING-OTHER']);
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $provider->id]);
+
+    $this->actingAs($staff)->get(route('provider.balances.index'))
+        ->assertOk()
+        ->assertViewHas('billCount', 1)
+        ->assertViewHas('overdueBillCount', 1)
+        ->assertSee('Outstanding balance')
+        ->assertSee(route('provider.payments.index', ['bill' => $bill->id]), false)
+        ->assertDontSee('900.00');
+
+    $this->get(route('provider.service.index'))
+        ->assertOk()
+        ->assertViewHas('serviceStatusCounts', ['active' => 1, 'disconnected' => 1, 'pending_reconnection' => 1])
+        ->assertSee('Service lifecycle');
+
+    $this->get(route('provider.payments.index'))
+        ->assertOk()
+        ->assertViewHas('pendingPaymentCount', 1)
+        ->assertSee('Pending review')
+        ->assertSee($bill->number)
+        ->assertSee($active->meter_number)
+        ->assertDontSee('PENDING-OTHER');
 });

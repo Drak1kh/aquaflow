@@ -7,13 +7,18 @@
             <form method="POST" action="{{ route('provider.profile') }}" class="space-y-4">
                 @csrf @method('PUT')
                 @foreach (['name' => ['Provider name', 'text'], 'address' => ['Office address', 'text'], 'phone' => ['Contact number', 'tel'], 'email' => ['Contact email', 'email'], 'due_days' => ['Due days after month end', 'number'], 'grace_days' => ['Grace period (days)', 'number'], 'late_fee' => ['Late fee (PHP)', 'number']] as $field => [$label, $type])
-                    <flux:input :placeholder="match ($field) { 'name' => 'Enter the provider name', 'address' => 'Enter the office address', 'phone' => 'e.g. 09123456789', 'email' => 'e.g. office@example.com', 'due_days' => 'e.g. 14', 'grace_days' => 'e.g. 7', 'late_fee' => 'e.g. 20.00' }" :name="$field" :value="old($field, $provider->$field)" :label="$label" :type="$type" :min="$type === 'number' ? 0 : null" :step="$field === 'late_fee' ? '0.01' : ($type === 'number' ? '1' : null)" :required="in_array($field, ['name', 'due_days'])" />
+                    <flux:input :placeholder="match ($field) { 'name' => 'Enter the provider name', 'address' => 'Enter the office address', 'phone' => 'e.g. 09123456789', 'email' => 'e.g. office@example.com', 'due_days' => 'e.g. 14', 'grace_days' => 'e.g. 7', 'late_fee' => 'e.g. 20.00' }" :name="$field" :value="old($field, $provider->$field)" :label="$label" :type="$type" :inputmode="$field === 'phone' ? 'numeric' : null" :pattern="$field === 'phone' ? '[0-9]*' : null" :min="$type === 'number' ? 0 : null" :step="$field === 'late_fee' ? '0.01' : ($type === 'number' ? '1' : null)" :required="in_array($field, ['name', 'due_days'])" />
                 @endforeach
                 <flux:text>Due days are counted after the end of the billing month. Water rates are configured under Billing.</flux:text>
                 <flux:button type="submit" variant="primary">Save settings</flux:button>
             </form>
         @else
-            @if ($section === 'balances')<flux:button :href="route('provider.service.index')">Disconnection &amp; Reconnection</flux:button>@endif
+            @if ($section === 'balances')
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <flux:text>Review unpaid bills before starting a service action. Balances shown here are bill-specific.</flux:text>
+                    <flux:button :href="route('provider.service.index')">Disconnection &amp; Reconnection</flux:button>
+                </div>
+            @endif
             <form method="GET" class="flex flex-wrap items-end gap-3">
                 <x-month-input name="month" label="Billing month" :value="request('month')" />
                 <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer name or account" :value="request('search')" />
@@ -32,10 +37,35 @@
                     <flux:text>Consumption: {{ $consumption }} m³</flux:text>
                 </flux:card>
             @endif
-            <flux:heading level="2">Outstanding: ₱{{ bcadd((string) $outstanding, '0', 2) }}</flux:heading>
+            @if ($section === 'balances')
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <flux:card><flux:text>Outstanding balance</flux:text><flux:heading class="tabular-nums" level="2">₱{{ bcadd((string) $outstanding, '0', 2) }}</flux:heading></flux:card>
+                    <flux:card><flux:text>Unpaid bills</flux:text><flux:heading class="tabular-nums" level="2">{{ $billCount }}</flux:heading></flux:card>
+                    <flux:card><flux:text>Overdue bills</flux:text><flux:heading class="tabular-nums" level="2">{{ $overdueBillCount }}</flux:heading></flux:card>
+                </div>
+                <flux:heading level="2">Bills requiring attention</flux:heading>
+            @else
+                <flux:heading level="2">Outstanding: ₱{{ bcadd((string) $outstanding, '0', 2) }}</flux:heading>
+            @endif
             @foreach ($bills as $bill)
                 @if ($section === 'reports' || bccomp($bill->balance(), '0', 2) > 0)
-                    <flux:card><a href="{{ route('bills.print', $bill) }}" data-document-preview>{{ $bill->consumer->name }} · {{ $bill->number }}</a><flux:text>{{ $bill->paymentStatus() }} · Due {{ $bill->due_at->format('M d, Y') }} · ₱{{ $bill->balance() }} remaining · Penalty ₱{{ $bill->late_fee }}</flux:text>
+                    <flux:card class="space-y-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <flux:heading level="2">{{ $bill->consumer->name }}</flux:heading>
+                                <flux:text>Account {{ $bill->consumer->account_number }} · Meter {{ $bill->connection?->meter_number ?? '—' }}</flux:text>
+                            </div>
+                            <flux:badge>{{ ucfirst(str_replace('_', ' ', $bill->paymentStatus())) }}</flux:badge>
+                        </div>
+                        <div class="grid gap-3 text-sm sm:grid-cols-4">
+                            <div><flux:text>Bill</flux:text><a href="{{ route('bills.print', $bill) }}" data-document-preview class="text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-brand-aqua">{{ $bill->number }}</a></div>
+                            <div><flux:text>Due date</flux:text><flux:text>{{ $bill->due_at->format('M d, Y') }}</flux:text></div>
+                            <div><flux:text>Remaining</flux:text><flux:text class="tabular-nums">₱{{ $bill->balance() }}</flux:text></div>
+                            <div><flux:text>Penalty ₱{{ $bill->late_fee }}</flux:text></div>
+                        </div>
+                        @if ($section === 'balances')
+                            <flux:button :href="route('provider.payments.index', ['bill' => $bill->id])">Review payments</flux:button>
+                        @endif
                     @if ($section === 'balances' && !$bill->late_fee_applied_at && bccomp($lateFee, '0', 2) > 0 && $bill->due_at->copy()->addDays($graceDays)->isBefore(today()))
                         <form method="POST" action="{{ route('provider.bills.penalty', $bill) }}">@csrf<flux:button type="submit">Apply eligible penalty</flux:button></form>
                     @elseif ($section === 'balances')

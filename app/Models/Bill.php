@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $period_month
  * @property-read WaterProvider $waterProvider
  * @property-read Consumer $consumer
+ * @property-read Connection $connection
  */
 #[Fillable(['water_provider_id', 'consumer_id', 'connection_id', 'meter_reading_id', 'number', 'period_month', 'previous_reading', 'current_reading', 'consumption', 'base_charge', 'unit_rate', 'consumption_charge', 'late_fee', 'total', 'due_at', 'status', 'late_fee_applied_at'])]
 class Bill extends Model
@@ -44,6 +45,12 @@ class Bill extends Model
     public function consumer(): BelongsTo
     {
         return $this->belongsTo(Consumer::class);
+    }
+
+    /** @return BelongsTo<Connection, $this> */
+    public function connection(): BelongsTo
+    {
+        return $this->belongsTo(Connection::class);
     }
 
     /** @return BelongsTo<WaterProvider, $this> */

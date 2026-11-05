@@ -45,7 +45,7 @@
                     @endif
                 </dl>
                 <flux:modal.trigger name="edit-ticket-review">
-                    <flux:button>{{ __('Edit review') }}</flux:button>
+                    <flux:button class="aquaflow-edit-action">{{ __('Edit review') }}</flux:button>
                 </flux:modal.trigger>
             </div>
         </aside>

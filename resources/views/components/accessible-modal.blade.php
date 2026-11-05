@@ -13,7 +13,7 @@
     if ($event.shiftKey && document.activeElement === first) { $event.preventDefault(); last?.focus(); }
     if (!$event.shiftKey && document.activeElement === last) { $event.preventDefault(); first?.focus(); }
 ">
-    <flux:modal :name="$name" :class="$attributes->get('class')">
+    <flux:modal :name="$name" :class="trim('aquaflow-modal '.$attributes->get('class'))">
         {{ $slot }}
     </flux:modal>
 </div>

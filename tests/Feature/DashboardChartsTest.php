@@ -4,6 +4,7 @@ use App\Models\Bill;
 use App\Models\Connection;
 use App\Models\Payment;
 use App\Models\RolePermission;
+use App\Models\SupportTicket;
 use App\Models\User;
 use App\UserRole;
 
@@ -41,6 +42,28 @@ test('provider charts contain only the providers billing payments and consumptio
     $response->assertOk()->assertSee('Water consumption');
     expect($response->viewData('financialTrend')[5])->toBe(['month' => 'Jan 2026', 'billed' => '125.00', 'collected' => '25.00']);
     expect($response->viewData('consumptionTrend')[5])->toBe(['month' => 'Jan 2026', 'consumption' => '10.000']);
+});
+
+test('provider dashboard surfaces only its operational attention metrics and billing rules', function () {
+    $this->travelTo(now()->setDate(2026, 11, 4));
+    $overdue = Bill::factory()->create(['due_at' => '2026-10-01', 'total' => '125.00']);
+    Bill::factory()->create(['water_provider_id' => $overdue->water_provider_id, 'status' => 'void', 'due_at' => '2026-09-01']);
+    Bill::factory()->create(['due_at' => '2026-09-01']);
+    Payment::factory()->create(['water_provider_id' => $overdue->water_provider_id, 'status' => 'pending']);
+    Payment::factory()->create(['status' => 'pending']);
+    SupportTicket::factory()->create(['water_provider_id' => $overdue->water_provider_id, 'status' => 'open']);
+    SupportTicket::factory()->create(['water_provider_id' => $overdue->water_provider_id, 'status' => 'closed']);
+    SupportTicket::factory()->create(['status' => 'open']);
+    $overdue->waterProvider->update(['due_days' => 14, 'grace_days' => 7, 'late_fee' => '25.00']);
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $overdue->water_provider_id]);
+
+    $response = $this->actingAs($staff)->get(route('dashboard.provider'));
+
+    $response->assertOk()->assertSee('Operational attention')->assertSee('Billing rules');
+    expect($response->viewData('pendingPayments'))->toBe(1)
+        ->and($response->viewData('overdueBills'))->toBe(1)
+        ->and($response->viewData('openTickets'))->toBe(1)
+        ->and($response->viewData('currentRate'))->toBeNull();
 });
 
 test('consumer charts combine their connections and exclude other consumers in the same provider', function () {

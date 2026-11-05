@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Actions\AuditLogger;
 use App\Actions\PlatformSettings;
 use App\Models\Bill;
-use App\Models\BillingPeriod;
 use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\MeterReading;
@@ -40,7 +39,7 @@ class MvpController extends Controller
             return view('provider.summary', compact('section', 'provider'));
         }
         $balanceSql = 'total - (select coalesce(sum(amount), 0) from payment_allocations where bill_id = bills.id)';
-        $billsQuery = Bill::with(['consumer', 'allocations'])->where('water_provider_id', $provider->id)->where('status', '!=', 'void')
+        $billsQuery = Bill::with(['consumer', 'connection', 'allocations'])->where('water_provider_id', $provider->id)->where('status', '!=', 'void')
             ->when($request->filled('month'), fn ($q) => $q->whereDate('period_month', $request->input('month').'-01'))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('period_month', '>=', $request->input('from')))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('period_month', '<=', $request->input('to')))
@@ -48,6 +47,7 @@ class MvpController extends Controller
             ->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', '%'.$request->input('search').'%')->orWhere('account_number', 'like', '%'.$request->input('search').'%')))
             ->when($section === 'balances', fn ($q) => $q->whereRaw('('.$balanceSql.') > 0'));
         $billCount = (clone $billsQuery)->count();
+        $overdueBillCount = $section === 'balances' ? (clone $billsQuery)->whereDate('due_at', '<', today())->count() : 0;
         $billedTotal = (string) (clone $billsQuery)->sum('total');
         $outstanding = (clone $billsQuery)->reorder()->selectRaw('COALESCE(SUM('.$balanceSql.'), 0) as balance_total')->first()->balance_total;
         $bills = $billsQuery->latest('period_month')->paginate(20)->withQueryString();
@@ -70,33 +70,12 @@ class MvpController extends Controller
         $graceDays = (int) ($provider->grace_days ?? app(PlatformSettings::class)->get('grace_days'));
         $lateFee = (string) ($provider->late_fee ?? app(PlatformSettings::class)->get('late_fee'));
 
-        return view('provider.summary', compact('section', 'provider', 'bills', 'billCount', 'billedTotal', 'outstanding', 'collected', 'consumption', 'graceDays', 'lateFee'));
-    }
-
-    public function billingPeriod(Request $request, AuditLogger $audit): RedirectResponse
-    {
-        $providerId = $request->user()->water_provider_id;
-        $data = $request->validate([
-            'period_month' => ['required', 'date_format:Y-m'],
-            'due_at' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.($request->input('period_month').'-01')],
-        ]);
-        $month = $data['period_month'].'-01';
-        $period = DB::transaction(function () use ($providerId, $month, $data): BillingPeriod {
-            WaterProvider::whereKey($providerId)->lockForUpdate()->firstOrFail();
-            if (BillingPeriod::where('water_provider_id', $providerId)->whereDate('period_month', $month)->exists()) {
-                throw ValidationException::withMessages(['period_month' => 'This billing period already exists.']);
-            }
-
-            return BillingPeriod::create(['water_provider_id' => $providerId, 'period_month' => $month, 'due_at' => $data['due_at']]);
-        });
-        $audit->record($period, 'billing_period.created', $request->user(), after: $data);
-
-        return back()->with('status', 'Billing period created.');
+        return view('provider.summary', compact('section', 'provider', 'bills', 'billCount', 'overdueBillCount', 'billedTotal', 'outstanding', 'collected', 'consumption', 'graceDays', 'lateFee'));
     }
 
     public function providerSettings(Request $request, AuditLogger $audit): RedirectResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:255'], 'address' => ['nullable', 'string', 'max:2000'], 'phone' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email'], 'due_days' => ['required', 'integer', 'min:0', 'max:90'], 'grace_days' => ['nullable', 'integer', 'min:0', 'max:90'], 'late_fee' => ['nullable', 'decimal:0,2', 'min:0', 'max:99999999999']]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:255'], 'address' => ['nullable', 'string', 'max:2000'], 'phone' => ['nullable', 'regex:/^\\d+$/', 'max:50'], 'email' => ['nullable', 'email'], 'due_days' => ['required', 'integer', 'min:0', 'max:90'], 'grace_days' => ['nullable', 'integer', 'min:0', 'max:90'], 'late_fee' => ['nullable', 'decimal:0,2', 'min:0', 'max:99999999999']]);
         $provider = $request->user()->waterProvider;
         $provider->update($data);
         $audit->record($provider, 'provider.updated', $request->user(), after: $data);
@@ -107,7 +86,7 @@ class MvpController extends Controller
     public function updateConsumer(Request $request, Consumer $consumer, AuditLogger $audit): RedirectResponse
     {
         abort_unless($consumer->water_provider_id === $request->user()->water_provider_id, 404);
-        $data = $request->validate(['account_number' => ['sometimes', 'required', 'string', 'max:80', Rule::unique('consumers')->where('water_provider_id', $consumer->water_provider_id)->ignore($consumer->id)], 'name' => ['required', 'string', 'max:255'], 'phone' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email'], 'address' => ['required', 'string', 'max:2000']]);
+        $data = $request->validate(['account_number' => ['sometimes', 'required', 'string', 'max:80', Rule::unique('consumers')->where('water_provider_id', $consumer->water_provider_id)->ignore($consumer->id)], 'name' => ['required', 'string', 'max:255'], 'phone' => ['nullable', 'regex:/^\\d+$/', 'max:50'], 'email' => ['nullable', 'email'], 'address' => ['required', 'string', 'max:2000']]);
         $consumer->update($data);
         $audit->record($consumer, 'consumer.updated', $request->user(), after: $data);
 

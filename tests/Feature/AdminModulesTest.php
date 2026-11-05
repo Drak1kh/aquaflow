@@ -47,6 +47,14 @@ test('an administrator can register a provider and create its staff account', fu
     expect($staff->must_change_password)->toBeTrue();
 });
 
+test('provider contacts require digits-only phones and valid email addresses', function () {
+    $admin = User::factory()->superAdmin()->create();
+
+    $this->actingAs($admin)->post(route('admin.providers.store'), [
+        'name' => 'North Water', 'code' => 'north-water', 'phone' => '0912-ABC', 'email' => 'missing-at-sign',
+    ])->assertSessionHasErrors(['phone', 'email']);
+});
+
 test('the last active super admin cannot be deactivated', function () {
     $admin = User::factory()->superAdmin()->create();
 

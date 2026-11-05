@@ -26,10 +26,5 @@
 @empty <flux:text>Your provider has not generated a bill for the current month.</flux:text> @endforelse
 </section>
 @endcan
-<div class="flex flex-wrap gap-3">
-    @can('payments.view')<flux:button :href="route('portal.section', 'payments')">View payments</flux:button>@endcan
-    @can('notifications.view')<flux:button :href="route('portal.section', 'notifications')">View notifications</flux:button>@endcan
-    <flux:button :href="route('portal.section', 'support')">Get help</flux:button>
-</div>
 </div>
 </x-layouts::app>

@@ -1,4 +1,4 @@
-<div class="grid gap-4 sm:grid-cols-3">
+<div class="grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
     <flux:card><flux:heading level="2">Registered consumers</flux:heading><flux:text>{{ $consumerCount }}</flux:text></flux:card>
     <flux:card><flux:heading level="2">Connections</flux:heading><flux:text>{{ $activeConnections }} active · {{ $disconnectedConnections }} disconnected</flux:text></flux:card>
     <flux:card><flux:heading level="2">Bills this month</flux:heading><flux:text>{{ $monthlyBills }}</flux:text></flux:card>

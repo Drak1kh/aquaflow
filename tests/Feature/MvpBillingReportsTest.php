@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Bill;
-use App\Models\BillingPeriod;
 use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\MeterReading;
@@ -9,22 +8,18 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\WaterRate;
 
-test('monthly bills use the configured period due date and preserve the snapshot', function () {
+test('monthly bills use the submitted due date and preserve the snapshot', function () {
     $connection = Connection::factory()->create();
     $staff = User::factory()->waterProvider()->create(['water_provider_id' => $connection->water_provider_id]);
     MeterReading::factory()->create(['connection_id' => $connection->id, 'water_provider_id' => $connection->water_provider_id, 'period_month' => '2026-10-01', 'previous_reading' => '10.000', 'current_reading' => '15.000']);
     WaterRate::factory()->create(['water_provider_id' => $connection->water_provider_id, 'effective_from' => '2026-01-01', 'base_charge' => '50.00', 'unit_rate' => '10.00']);
 
-    $this->actingAs($staff)->post(route('provider.periods.store'), ['period_month' => '2026-10', 'due_at' => '2026-11-20'])->assertSessionHasNoErrors();
-    $this->post(route('provider.bills.store'), ['connection_id' => $connection->id, 'period_month' => '2026-10'])->assertSessionHasNoErrors();
+    $this->actingAs($staff)->post(route('provider.bills.store'), ['connection_id' => $connection->id, 'period_month' => '2026-10', 'due_at' => '2026-11-20'])->assertSessionHasNoErrors();
 
     $bill = Bill::firstOrFail();
     expect($bill->due_at->toDateString())->toBe('2026-11-20');
     expect($bill->total)->toBe('100.00');
-    BillingPeriod::firstOrFail()->update(['due_at' => '2026-11-25']);
     expect($bill->fresh()->due_at->toDateString())->toBe('2026-11-20');
-    $this->post(route('provider.periods.store'), ['period_month' => '2026-10', 'due_at' => '2026-11-30'])->assertSessionHasErrors('period_month');
-    expect(BillingPeriod::firstOrFail()->due_at->toDateString())->toBe('2026-11-25');
 });
 
 test('reports apply consumer and date filters to bills collections and readings', function () {

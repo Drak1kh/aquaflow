@@ -70,11 +70,16 @@ class DemoDataSeeder extends Seeder
         WaterRate::where('water_provider_id', $provider->id)->whereDate('effective_from', '2020-01-01')->firstOrCreate([], [
             'water_provider_id' => $provider->id, 'effective_from' => '2020-01-01', 'base_charge' => '50.00', 'unit_rate' => '12.50',
         ]);
-        foreach ([2, 1, 0] as $monthsAgo) {
+        foreach (range(today()->month - 1, 0) as $monthsAgo) {
             $month = today()->startOfMonth()->subMonths($monthsAgo);
             BillingPeriod::where('water_provider_id', $provider->id)->whereDate('period_month', $month->toDateString())->firstOrCreate([], [
                 'water_provider_id' => $provider->id, 'period_month' => $month->toDateString(),
                 'due_at' => $monthsAgo === 0 ? today()->addDays(5)->toDateString() : $month->copy()->addDays(19)->toDateString(),
+            ]);
+        }
+        foreach (range(1, today()->month, 2) as $month) {
+            WaterRate::where('water_provider_id', $provider->id)->whereDate('effective_from', today()->setMonth($month)->startOfMonth()->toDateString())->firstOrCreate([], [
+                'water_provider_id' => $provider->id, 'effective_from' => today()->setMonth($month)->startOfMonth()->toDateString(), 'base_charge' => '50.00', 'unit_rate' => number_format(12.50 + (($month - 1) / 2 * 0.25), 2, '.', ''),
             ]);
         }
 
@@ -112,7 +117,7 @@ class DemoDataSeeder extends Seeder
     {
         $billing = app(BillingService::class);
         $notices = app(ClientNoticeService::class);
-        foreach ([2, 1, 0] as $monthsAgo) {
+        foreach (range(today()->month - 1, 0) as $monthsAgo) {
             if ($monthsAgo === 0 && $index === 5) {
                 continue;
             }

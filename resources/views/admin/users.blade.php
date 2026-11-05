@@ -74,20 +74,23 @@
                                 <flux:badge :color="$user->is_active ? 'green' : 'zinc'">{{ $user->is_active ? __('Active') : __('Inactive') }}</flux:badge>
                             </td>
                             <td class="px-5 py-4">
-                                <div class="flex flex-wrap gap-2">
+                                <flux:dropdown position="bottom" align="end">
+                                    <flux:button icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('User actions') }}" />
+                                    <flux:menu>
                                     <flux:modal.trigger :name="'edit-user-'.$user->id">
-                                        <flux:button class="min-h-11" variant="subtle">{{ __('Edit') }}</flux:button>
+                                        <flux:menu.item>{{ __('Edit') }}</flux:menu.item>
                                     </flux:modal.trigger>
                                     <form method="POST" action="{{ route('admin.users.status', $user) }}">
                                         @csrf
                                         @method('PATCH')
-                                        <flux:button type="submit" class="min-h-11" :variant="$user->is_active ? 'danger' : 'subtle'">{{ $user->is_active ? __('Deactivate') : __('Activate') }}</flux:button>
+                                        <flux:menu.item as="button" type="submit">{{ $user->is_active ? __('Deactivate') : __('Activate') }}</flux:menu.item>
                                     </form>
                                     <form method="POST" action="{{ route('admin.users.reset', $user) }}">
                                         @csrf
-                                        <flux:button type="submit" class="min-h-11">{{ __('Reset password') }}</flux:button>
+                                        <flux:menu.item as="button" type="submit">{{ __('Reset password') }}</flux:menu.item>
                                     </form>
-                                </div>
+                                    </flux:menu>
+                                </flux:dropdown>
                             </td>
                         </tr>
                     @empty

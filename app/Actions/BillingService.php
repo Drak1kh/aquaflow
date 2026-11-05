@@ -3,7 +3,6 @@
 namespace App\Actions;
 
 use App\Models\Bill;
-use App\Models\BillingPeriod;
 use App\Models\Connection;
 use App\Models\MeterReading;
 use App\Models\User;
@@ -17,7 +16,7 @@ class BillingService
 {
     public function __construct(private PlatformSettings $settings, private AuditLogger $audit) {}
 
-    /** @return array{reading: MeterReading, rate: WaterRate, consumption: string, consumption_charge: string, total: string, due_at: string} */
+    /** @return array{reading: MeterReading, rate: WaterRate, consumption: string, consumption_charge: string, total: string} */
     public function preview(Connection $connection, string $period): array
     {
         $month = CarbonImmutable::parse($period)->startOfMonth();
@@ -36,22 +35,18 @@ class BillingService
 
         $consumption = bcsub($reading->current_reading, $reading->previous_reading, 3);
         $consumptionCharge = bcmul($consumption, $rate->unit_rate, 2);
-        $provider = WaterProvider::findOrFail($connection->water_provider_id);
-
         return [
             'reading' => $reading,
             'rate' => $rate,
             'consumption' => $consumption,
             'consumption_charge' => $consumptionCharge,
             'total' => bcadd($rate->base_charge, $consumptionCharge, 2),
-            'due_at' => BillingPeriod::where('water_provider_id', $provider->id)->whereDate('period_month', $month->toDateString())->first()?->due_at->toDateString()
-                ?? $month->endOfMonth()->addDays((int) $this->settings->numberForProvider($provider, 'due_days'))->toDateString(),
         ];
     }
 
-    public function generate(Connection $connection, string $period, User $actor): Bill
+    public function generate(Connection $connection, string $period, string $dueAt, User $actor): Bill
     {
-        return DB::transaction(function () use ($connection, $period, $actor): Bill {
+        return DB::transaction(function () use ($connection, $period, $dueAt, $actor): Bill {
             $connection = Connection::whereKey($connection->id)->lockForUpdate()->firstOrFail();
             $month = CarbonImmutable::parse($period)->startOfMonth()->toDateString();
 
@@ -74,7 +69,7 @@ class BillingService
                 'unit_rate' => $preview['rate']->unit_rate,
                 'consumption_charge' => $preview['consumption_charge'],
                 'total' => $preview['total'],
-                'due_at' => $preview['due_at'],
+                'due_at' => $dueAt,
             ]);
             $this->audit->record($bill, 'bill.generated', $actor, after: ['total' => $bill->total]);
 

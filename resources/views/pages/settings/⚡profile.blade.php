@@ -33,7 +33,7 @@ new #[Title('Profile settings')] class extends Component {
     {
         $user = Auth::user();
 
-        $validated = $this->validate([...$this->profileRules($user->id), 'phone' => ['nullable', 'string', 'max:50']]);
+        $validated = $this->validate([...$this->profileRules($user->id), 'phone' => ['nullable', 'regex:/^\\d+$/', 'max:50']]);
         unset($validated['phone']);
         DB::transaction(function () use ($user, $validated): void {
             if ($user->consumer) {
@@ -109,7 +109,7 @@ new #[Title('Profile settings')] class extends Component {
                 <flux:input wire:model="email" placeholder="e.g. account@example.com" :label="__('Email')" type="email" required autocomplete="email" />
 
                 @if (Auth::user()->consumer_id)
-                    <flux:input wire:model="phone" placeholder="e.g. 09123456789" label="Contact number" type="tel" />
+                    <flux:input wire:model="phone" placeholder="e.g. 09123456789" label="Contact number" type="tel" inputmode="numeric" pattern="[0-9]*" />
                 @endif
                 @if ($this->hasUnverifiedEmail)
                     <div>

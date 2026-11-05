@@ -5,23 +5,25 @@
         <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer name or account" :value="request('search')" />
         <flux:button type="submit">Filter connections and history</flux:button>
     </form>
-    @forelse ($history as $reading)
-        <article class="space-y-3 border-b border-zinc-200 py-4 dark:border-zinc-700">
-            <flux:heading level="3">{{ $reading->connection->consumer->name }} · {{ $reading->connection->meter_number }}</flux:heading>
-            <flux:text>{{ $reading->period_month->format('M Y') }} · {{ $reading->previous_reading }} → {{ $reading->current_reading }} · {{ bcsub($reading->current_reading, $reading->previous_reading, 3) }} m³</flux:text>
-            @if (!$reading->bill_count && !$reading->later_count)
-                <form method="POST" action="{{ route('provider.readings.update', $reading) }}" class="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    @csrf @method('PUT')
-                    <input type="hidden" name="_form" value="correct-{{ $reading->id }}">
-                    <flux:input placeholder="e.g. 115.500" name="current_reading" type="number" step="0.001" min="0" :value="old('_form') === 'correct-'.$reading->id ? old('current_reading') : $reading->current_reading" label="Correct current reading" required />
-                    <flux:button type="submit">Save correction</flux:button>
-                </form>
-            @else
-                <flux:text>Locked: {{ $reading->bill_count ? 'a bill has been generated from this reading.' : 'a later reading uses this value.' }}</flux:text>
-            @endif
-        </article>
-    @empty
-        <flux:text>No readings match these filters.</flux:text>
-    @endforelse
+    <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700">
+            <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">{{ __('Consumer') }}</th><th scope="col" class="px-4 py-3">{{ __('Meter') }}</th><th scope="col" class="px-4 py-3">{{ __('Month') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Previous') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Current') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Usage (m³)') }}</th><th scope="col" class="px-4 py-3">{{ __('Status') }}</th></tr></thead>
+            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                @forelse ($history as $reading)
+                    <tr>
+                        <td class="px-4 py-3 font-medium"><a href="{{ route('provider.consumers.index', ['search' => $reading->connection->consumer->account_number]) }}" class="aquaflow-plain-link">{{ $reading->connection->consumer->name }}</a></td>
+                        <td class="px-4 py-3">{{ $reading->connection->meter_number }}</td>
+                        <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">{{ $reading->period_month->format('M Y') }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums">{{ $reading->previous_reading }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums">{{ $reading->current_reading }}</td>
+                        <td class="px-4 py-3 text-right tabular-nums">{{ bcsub($reading->current_reading, $reading->previous_reading, 3) }}</td>
+                        <td class="px-4 py-3">@if ($reading->bill_id)<a href="{{ route('provider.payments.index', ['bill' => $reading->bill_id]) }}" class="aquaflow-status-link inline-flex rounded-md bg-green-100 px-2 py-1 text-xs font-medium hover:bg-green-200 focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-green-900/40 dark:hover:bg-green-900/60">{{ __('Bill Generated') }}</a>@else<span class="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ __('Pending') }}</span>@endif</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="7" class="px-4 py-8 text-center">{{ __('No readings match these filters.') }}</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
     {{ $history->links() }}
 </section>

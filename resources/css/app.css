@@ -448,7 +448,31 @@ html:has(> body.landing) { scroll-behavior: smooth; }
 }
 
 :is(.provider-page, .client-page) { overflow-wrap: anywhere; }
-:is(.provider-page, .client-page) a:not([data-flux-button]):not([data-flux-pagination] *) {
+
+/* Shared operational controls keep actions and dense records readable in either theme. */
+:is(.provider-page, .client-page, [data-page-content]) table { width: 100%; border-collapse: collapse; }
+:is(.provider-page, .client-page, [data-page-content]) th { background: var(--color-brand-surface); color: var(--color-brand-ink); font-weight: 600; }
+:is(.provider-page, .client-page, [data-page-content]) tbody tr { border-color: var(--color-zinc-200); }
+:is(.provider-page, .client-page, [data-page-content]) tbody tr:hover { background: color-mix(in srgb, var(--color-brand-mist) 24%, transparent); }
+.dark :is(.provider-page, .client-page, [data-page-content]) th { background: var(--color-zinc-800); color: white; }
+.dark :is(.provider-page, .client-page, [data-page-content]) tbody tr { border-color: var(--color-zinc-700); }
+.dark :is(.provider-page, .client-page, [data-page-content]) tbody tr:hover { background: rgb(255 255 255 / 0.06); }
+
+[data-flux-button].aquaflow-edit-action { background: white; border: 1px solid var(--color-zinc-300); color: var(--color-brand-ink); }
+[data-flux-button].aquaflow-edit-action:hover { background: var(--color-brand-surface); border-color: var(--color-brand-primary); }
+.dark [data-flux-button].aquaflow-edit-action { background: var(--color-zinc-900); border-color: var(--color-zinc-600); color: white; }
+.dark [data-flux-button].aquaflow-edit-action:hover { background: var(--color-zinc-800); border-color: var(--color-brand-aqua); }
+[data-flux-button].aquaflow-danger-action { background: #b91c1c; color: white; }
+[data-flux-button].aquaflow-danger-action:hover { background: #991b1b; }
+.dark [data-flux-button].aquaflow-danger-action { background: #dc2626; }
+[data-flux-button].aquaflow-danger-action:hover { background: #b91c1c; }
+[data-flux-button].aquaflow-edit-action:focus-visible, [data-flux-button].aquaflow-danger-action:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
+
+input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { appearance: none; margin: 0; }
+dialog.aquaflow-modal::backdrop { background: rgb(9 24 44 / 0.56); backdrop-filter: blur(4px); }
+@media (prefers-reduced-motion: reduce) { dialog.aquaflow-modal::backdrop { backdrop-filter: none; } }
+:is(.provider-page, .client-page) a:not([data-flux-button]):not([data-flux-pagination] *):not([data-kpi-card]) {
     color: var(--color-brand-primary);
     text-decoration: underline;
     text-underline-offset: 0.2em;
@@ -458,6 +482,9 @@ html:has(> body.landing) { scroll-behavior: smooth; }
     outline: 2px solid var(--color-brand-primary);
     outline-offset: 3px;
 }
+:is(.provider-page, .client-page) a.aquaflow-plain-link { color: inherit !important; text-decoration: none !important; }
+:is(.provider-page, .client-page) a.aquaflow-status-link { color: #15803d !important; text-decoration: none !important; }
+.dark :is(.provider-page, .client-page) a.aquaflow-status-link { color: #86efac !important; }
 @media (max-width: 639px) {
     :is(.provider-page, .client-page) [data-flux-button], :is(.provider-page, .client-page) summary { min-height: 44px; }
     :is(.provider-page, .client-page) td > a { display: inline-flex; align-items: center; min-height: 44px; margin-inline-end: 0.5rem; }

@@ -3,7 +3,7 @@
 
     <x-docs-topic id="provider-start" title="Prepare for your first billing month" role="provider">
         <p>Get your staff login from your Super Admin. Change a temporary password when prompted. Your menus and actions depend on the permissions assigned to your role.</p>
-        <ol><li>Check the provider’s details and billing rules in <strong>Profile Settings</strong>.</li><li>Register a consumer in <strong>Consumer Management</strong>.</li><li>Add the connection and meter in <strong>Meter Readings</strong>.</li><li>Set the applicable water rate and billing period in <strong>Billing Management</strong>.</li><li>Record the meter reading, preview the bill, and generate it.</li></ol>
+        <ol><li>Check the provider’s details and billing rules in <strong>Profile Settings</strong>.</li><li>Register a consumer in <strong>Consumer Management</strong>.</li><li>Add the connection and meter in <strong>Meter Readings</strong>.</li><li>Set the applicable water rate in <strong>Billing Management</strong>.</li><li>Record the meter reading, then generate a bill with its billing month and due date.</li></ol>
         <p class="docs-result"><strong>What happens next:</strong> The bill appears in the consumer’s portal if portal access has been activated. Payment still needs to be recorded and verified separately.</p>
         <p>See the <a href="#shared-cycle" data-doc-topic-link="shared-cycle">complete meter-to-payment flow</a> for who handles each step.</p>
     </x-docs-topic>
@@ -30,13 +30,13 @@
     </x-docs-topic>
 
     <x-docs-topic id="provider-rates" title="Set a rate and billing due date" role="provider">
-        <ol><li>In <strong>Billing Management</strong>, select <strong>Set water rate</strong>. Enter the base charge, price per m³, and effective date.</li><li>Under <strong>Billing periods</strong>, choose the billing month and due date, then select <strong>Create billing period</strong>.</li><li>Check the rate’s effective date and the intended month before generating bills.</li></ol>
+        <ol><li>In <strong>Billing Management</strong>, select <strong>Set water rate</strong>. Enter the base charge, price per m³, and effective date.</li><li>Select <strong>Generate bill</strong>, choose the connection and billing month, then confirm or edit the suggested due date before generating the bill.</li><li>Check the rate’s effective date and the intended month before generating bills.</li></ol>
         <p>The base charge is a fixed amount. The price per m³ is multiplied by the recorded water consumption. Historical bills keep their saved readings and rate; a new rate does not rewrite old bills.</p>
-        <p class="docs-note">If there is no applicable rate for a month, billing cannot proceed. A saved billing period supplies that month’s due date; otherwise the provider’s configured due-day rules apply.</p>
+        <p class="docs-note">The suggested due date uses the provider’s configured due-day rules. Set a due date on or after the first day of the billing month.</p>
     </x-docs-topic>
 
-    <x-docs-topic id="provider-bills" title="Preview and generate bills" role="provider">
-        <ol><li>In <strong>Billing Management</strong>, choose the connection and month under <strong>Connection to preview</strong>, then select <strong>Preview bill</strong>.</li><li>Review consumption and charges. Previewing alone does not create a saved bill.</li><li>Select <strong>Generate bill</strong> for a single connection, or <strong>Generate monthly batch</strong> for the month’s eligible active connections.</li><li>Review the result. A batch skips connections that already have a bill or do not have a reading for that month.</li><li>Open a saved bill number to preview the document. Select <strong>Print / save PDF</strong> when you need a copy.</li></ol>
+    <x-docs-topic id="provider-bills" title="Generate bills" role="provider">
+        <ol><li>In <strong>Billing Management</strong>, select <strong>Generate bill</strong>.</li><li>Choose the connection and billing month, then confirm or edit the due date.</li><li>Select <strong>Generate bill</strong>. The connection must be active, have a meter reading and effective rate for that month, and not already have a bill for it.</li><li>Open a saved bill number to preview the document. Select <strong>Print / save PDF</strong> when you need a copy.</li></ol>
         <x-docs-example title="A provider generates its first bill">
             <p>For a fictional connection, the previous reading is 100 m³ and the current reading is 115 m³. Consumption is 15 m³.</p>
             <p>With a ₱50 base charge and a ₱10 rate per m³, the bill is ₱200 before any adjustment or penalty: ₱50 + (15 × ₱10).</p>

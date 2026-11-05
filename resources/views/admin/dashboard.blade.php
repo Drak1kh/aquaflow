@@ -49,16 +49,5 @@
                 </dl>
             </section>
         </div>
-
-        <section>
-            <flux:heading level="2" size="lg">{{ __('Recent system activity') }}</flux:heading>
-            <div class="mt-4 divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-900">
-                @forelse ($activity as $event)
-                    <div class="flex justify-between gap-4 px-5 py-3 text-sm"><span>{{ str_replace('.', ' · ', $event->action) }} <span class="text-zinc-500">#{{ $event->subject_id }}</span></span><time class="shrink-0 text-zinc-500">{{ $event->created_at->diffForHumans() }}</time></div>
-                @empty
-                    <div class="px-5 py-8 text-center text-sm text-zinc-600 dark:text-zinc-300">{{ __('Activity will appear here when records change.') }}</div>
-                @endforelse
-            </div>
-        </section>
     </div>
 </x-layouts::app>

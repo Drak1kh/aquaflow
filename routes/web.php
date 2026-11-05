@@ -83,7 +83,6 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
     });
 
     Route::get('management/{section}', [MvpController::class, 'management'])->middleware('can:access-water-provider')->name('management');
-    Route::post('provider/billing-periods', [MvpController::class, 'billingPeriod'])->middleware('can:billing.manage')->name('provider.periods.store');
     Route::put('provider/profile', [MvpController::class, 'providerSettings'])->middleware('can:provider.settings.manage')->name('provider.profile');
     Route::put('provider/consumers/{consumer}', [MvpController::class, 'updateConsumer'])->middleware('can:consumers.manage')->name('provider.consumers.update');
     Route::put('provider/readings/{reading}', [MvpController::class, 'correctReading'])->middleware('can:connections.manage')->name('provider.readings.update');
@@ -118,7 +117,6 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
         Route::post('readings', [OperationsController::class, 'reading'])->middleware('can:connections.manage')->name('readings.store');
         Route::post('rates', [OperationsController::class, 'rate'])->middleware('can:billing.manage')->name('rates.store');
         Route::post('bills', [OperationsController::class, 'bill'])->middleware('can:billing.manage')->name('bills.store');
-        Route::post('bills/batch', [OperationsController::class, 'batchBills'])->middleware('can:billing.manage')->name('bills.batch');
         Route::post('payments', [OperationsController::class, 'payment'])->middleware('can:payments.manage')->name('payments.store');
         Route::post('payments/{payment}/verify', [OperationsController::class, 'verifyPayment'])->middleware('can:payments.verify')->name('payments.verify');
         Route::post('payments/{payment}/reject', [OperationsController::class, 'rejectPayment'])->middleware('can:payments.verify')->name('payments.reject');

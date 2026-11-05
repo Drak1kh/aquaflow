@@ -3,7 +3,7 @@
         <x-page-header :title="__('System settings')" :description="__('Platform defaults apply when a provider has no override.')">
             <x-slot:actions>
                 <flux:modal.trigger name="edit-system-settings">
-                    <flux:button variant="primary" icon="pencil-square">{{ __('Edit settings') }}</flux:button>
+                    <flux:button class="aquaflow-edit-action" icon="pencil-square">{{ __('Edit settings') }}</flux:button>
                 </flux:modal.trigger>
             </x-slot:actions>
         </x-page-header>

@@ -23,6 +23,18 @@ test('charts show both series and accessible monthly values', function () {
     expect($elements->query('//svg[@role="img"]'))->toHaveCount(1);
 });
 
+test('compact charts omit the monthly values disclosure', function () {
+    $view = $this->blade('<x-dashboard-chart compact title="Water consumption" description="Metered usage" :data="$data" :series="$series" unit="m³" />', [
+        'data' => [['month' => 'Dec 2025', 'consumption' => '8.000'], ['month' => 'Jan 2026', 'consumption' => '10.000']],
+        'series' => ['consumption' => 'Consumption'],
+    ]);
+
+    $view->assertSee('Water consumption')->assertDontSee('View monthly values')->assertDontSee('Monthly values are available in the data table below.');
+    $document = new DOMDocument;
+    @$document->loadHTML((string) $view);
+    expect((new DOMXPath($document))->query('//table'))->toHaveCount(0);
+});
+
 test('empty charts explain missing activity and retain zero values in the table', function () {
     $view = $this->blade('<x-dashboard-chart title="Water consumption" description="Metered usage" :data="$data" :series="$series" unit="m³" />', [
         'data' => [['month' => 'Jan 2026', 'consumption' => '0.000']],

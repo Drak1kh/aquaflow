@@ -35,13 +35,19 @@ class ModuleController extends Controller
             ->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', '%'.$request->input('search').'%')->orWhere('account_number', 'like', '%'.$request->input('search').'%')))->with('latestServiceEvent')->paginate(20, ['*'], 'connections_page')->withQueryString();
         $bills = Bill::with('allocations')->where('water_provider_id', $request->user()->water_provider_id)->where('status', '!=', 'void')->whereIn('consumer_id', $connections->pluck('consumer_id'))->get()->groupBy('consumer_id');
         $events = ServiceEvent::with('connection.consumer')->whereHas('connection', fn ($q) => $q->where('water_provider_id', $request->user()->water_provider_id))->when($request->filled('search'), fn ($q) => $q->whereHas('connection.consumer', fn ($q) => $q->where('name', 'like', '%'.$request->input('search').'%')->orWhere('account_number', 'like', '%'.$request->input('search').'%')))->latest('id')->paginate(20, ['*'], 'history_page');
+        $statusCounts = Connection::where('water_provider_id', $request->user()->water_provider_id)->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $serviceStatusCounts = [
+            'active' => (int) ($statusCounts['active'] ?? 0),
+            'disconnected' => (int) ($statusCounts['disconnected'] ?? 0),
+            'pending_reconnection' => (int) ($statusCounts['pending_reconnection'] ?? 0),
+        ];
 
         $serviceOptions = [];
         foreach ($connections as $connection) {
             $serviceOptions[$connection->id] = $this->eligibleServiceActions($connection, $bills->get($connection->consumer_id, collect()), $connection->latestServiceEvent);
         }
 
-        return view('provider.service', compact('connections', 'bills', 'events', 'serviceOptions'));
+        return view('provider.service', compact('connections', 'bills', 'events', 'serviceOptions', 'serviceStatusCounts'));
     }
 
     public function serviceAction(Request $request, Connection $connection, AuditLogger $audit): RedirectResponse

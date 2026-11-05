@@ -3,19 +3,70 @@
 use App\Models\Bill;
 use App\Models\BillAdjustment;
 use App\Models\Connection;
+use App\Models\Consumer;
 use App\Models\MeterReading;
 use App\Models\User;
+use App\Models\WaterProvider;
+use Illuminate\Support\Facades\Route;
 
 test('provider modules have independent pages and the dashboard only shows summaries', function () {
     $bill = Bill::factory()->create();
     $admin = User::factory()->superAdmin()->create();
 
-    $this->actingAs($admin)->get(route('dashboard.provider'))->assertOk()->assertSee('Monthly consumption')->assertDontSee('Register consumer')->assertDontSee('Generate monthly batch');
+    $this->actingAs($admin)->get(route('dashboard.provider'))->assertOk()->assertSee('Operational attention')->assertSee('Water consumption')->assertDontSee('Register consumer')->assertDontSee('Generate monthly batch');
     foreach (['consumers.index' => 'Consumer Management', 'readings.index' => 'Meter Readings', 'billing.index' => 'Billing Management', 'payments.index' => 'Payment Management', 'balances.index' => 'Outstanding Balance Management', 'service.index' => 'Disconnection &amp; Reconnection', 'reports.billing' => 'Billing Reports', 'reports.consumption' => 'Water Consumption Reports', 'profile.edit' => 'Profile Settings'] as $route => $heading) {
         $this->get(route('provider.'.$route))->assertOk()->assertSee($heading, false);
     }
     $this->get(route('provider.consumers.index'))->assertSee('Register consumer')->assertDontSee('Generate monthly batch');
     $this->get(route('provider.payments.index'))->assertSee('Approved bill adjustments')->assertDontSee('Record reading');
+    expect(Route::has('provider.periods.store'))->toBeFalse()->and(Route::has('provider.bills.batch'))->toBeFalse();
+});
+
+test('billing groups each month together and shows that month\'s consumers together', function () {
+    $provider = WaterProvider::factory()->create();
+    $octoberConsumer = Consumer::factory()->create(['water_provider_id' => $provider->id, 'name' => 'October Client']);
+    $novemberConsumer = Consumer::factory()->create(['water_provider_id' => $provider->id, 'name' => 'November Client']);
+    $secondOctoberConsumer = Consumer::factory()->create(['water_provider_id' => $provider->id, 'name' => 'Second October Client']);
+
+    foreach ([[$octoberConsumer, 'OCT-ONE', '2026-10-01'], [$novemberConsumer, 'NOV-ONE', '2026-11-01'], [$secondOctoberConsumer, 'OCT-TWO', '2026-10-01']] as [$consumer, $number, $month]) {
+        $connection = Connection::factory()->create(['consumer_id' => $consumer->id, 'water_provider_id' => $provider->id]);
+        Bill::factory()->create(['connection_id' => $connection->id, 'consumer_id' => $consumer->id, 'water_provider_id' => $provider->id, 'number' => $number, 'period_month' => $month]);
+    }
+
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $provider->id]);
+    $content = $this->actingAs($staff)->get(route('provider.billing.index'))->assertOk()->getContent();
+
+    expect($content)
+        ->toContain('October 2026')
+        ->toContain('October Client')
+        ->toContain('Second October Client')
+        ->toContain('November Client')
+        ->and(strpos($content, 'November Client'))->toBeLessThan(strpos($content, 'October Client'));
+});
+
+test('billing sorts totals and balances from their column headers', function () {
+    $provider = WaterProvider::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $provider->id]);
+
+    foreach ([['High total', 'HIGH-TOTAL', '300.00'], ['Low total', 'LOW-TOTAL', '100.00'], ['Middle total', 'MID-TOTAL', '200.00']] as [$name, $number, $total]) {
+        $consumer = Consumer::factory()->create(['water_provider_id' => $provider->id, 'name' => $name]);
+        $connection = Connection::factory()->create(['consumer_id' => $consumer->id, 'water_provider_id' => $provider->id]);
+        Bill::factory()->create(['connection_id' => $connection->id, 'consumer_id' => $consumer->id, 'water_provider_id' => $provider->id, 'number' => $number, 'total' => $total]);
+    }
+
+    $content = $this->actingAs($staff)->get(route('provider.billing.index', ['sort' => 'total', 'direction' => 'asc']))->assertOk()->getContent();
+
+    expect($content)
+        ->toContain('Sort Total descending')
+        ->and(strpos($content, 'LOW-TOTAL'))->toBeLessThan(strpos($content, 'MID-TOTAL'))
+        ->and(strpos($content, 'MID-TOTAL'))->toBeLessThan(strpos($content, 'HIGH-TOTAL'));
+
+    $balanceContent = $this->get(route('provider.billing.index', ['sort' => 'balance', 'direction' => 'desc']))->assertOk()->getContent();
+
+    expect($balanceContent)
+        ->toContain('Sort Balance ascending')
+        ->and(strpos($balanceContent, 'HIGH-TOTAL'))->toBeLessThan(strpos($balanceContent, 'MID-TOTAL'))
+        ->and(strpos($balanceContent, 'MID-TOTAL'))->toBeLessThan(strpos($balanceContent, 'LOW-TOTAL'));
 });
 
 test('service changes require notice overdue balance settlement and an explicit restoration', function () {
@@ -111,6 +162,31 @@ test('provider profile saves office details and provider-specific penalty settin
 
     $this->assertDatabaseHas('water_providers', ['id' => $connection->water_provider_id, 'name' => 'Town Water', 'address' => 'Municipal Office', 'grace_days' => 5, 'late_fee' => '20.00']);
     $this->get(route('provider.profile.edit'))->assertOk()->assertSee('Municipal Office');
+});
+
+test('provider consumer contacts require digits-only phone numbers', function () {
+    $connection = Connection::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $connection->water_provider_id]);
+
+    $this->actingAs($staff)->post(route('provider.consumers.store'), [
+        'account_number' => 'A-100', 'name' => 'Client', 'address' => 'North Street', 'phone' => '0912-ABC',
+    ])->assertSessionHasErrors('phone');
+});
+
+test('registering a consumer also creates their first connection', function () {
+    $provider = \App\Models\WaterProvider::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $provider->id]);
+
+    $this->actingAs($staff)->post(route('provider.consumers.store'), [
+        'account_number' => 'A-200', 'name' => 'New Client', 'address' => 'North Street',
+        'number' => 'CON-200', 'meter_number' => 'MTR-200', 'installed_at' => '2026-11-04 00:00:00',
+    ])->assertSessionHasNoErrors();
+
+    $consumer = \App\Models\Consumer::where('account_number', 'A-200')->firstOrFail();
+    $this->assertDatabaseHas('connections', [
+        'water_provider_id' => $provider->id, 'consumer_id' => $consumer->id,
+        'number' => 'CON-200', 'meter_number' => 'MTR-200', 'installed_at' => '2026-11-04 00:00:00',
+    ]);
 });
 
 test('reconnection checks the consumer balance across all their connections', function () {

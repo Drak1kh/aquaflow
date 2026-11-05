@@ -27,7 +27,7 @@ class ProviderController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'alpha_dash', 'max:50', 'unique:water_providers,code'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'regex:/^\\d+$/', 'max:50'],
             'address' => ['nullable', 'string', 'max:2000'],
         ]);
         $provider = WaterProvider::create($data);
@@ -42,7 +42,7 @@ class ProviderController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'alpha_dash', 'max:50', Rule::unique('water_providers', 'code')->ignore($provider->id)],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'regex:/^\\d+$/', 'max:50'],
             'address' => ['nullable', 'string', 'max:2000'],
             'due_days' => ['nullable', 'integer', 'between:0,90'],
             'grace_days' => ['nullable', 'integer', 'between:0,90'],

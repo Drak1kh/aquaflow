@@ -13,7 +13,7 @@
                 <flux:input placeholder="Enter the full name" name="name" :value="old('_form') === 'create-provider' ? old('name') : null" :label="__('Provider name')" required />
                 <flux:input placeholder="e.g. north-water" name="code" :value="old('_form') === 'create-provider' ? old('code') : null" :label="__('Unique code')" required />
                 <flux:input placeholder="e.g. account@example.com" name="email" type="email" :value="old('_form') === 'create-provider' ? old('email') : null" :label="__('Email')" />
-                <flux:input placeholder="e.g. 09123456789" name="phone" :value="old('_form') === 'create-provider' ? old('phone') : null" :label="__('Phone')" />
+                <flux:input placeholder="e.g. 09123456789" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" :value="old('_form') === 'create-provider' ? old('phone') : null" :label="__('Phone')" />
                 <div class="sm:col-span-2">
                     <flux:textarea placeholder="Enter the office or service address" name="address" :label="__('Address')">{{ old('_form') === 'create-provider' ? old('address') : '' }}</flux:textarea>
                 </div>
@@ -44,17 +44,20 @@
                             <td class="px-5 py-4 tabular-nums">{{ $provider->users_count }}</td>
                             <td class="px-5 py-4"><flux:badge :color="$provider->is_active ? 'green' : 'zinc'">{{ $provider->is_active ? __('Active') : __('Inactive') }}</flux:badge></td>
                             <td class="px-5 py-4">
-                                <div class="flex flex-wrap gap-2">
-                                    <flux:button :href="route('dashboard.provider', ['provider_context' => $provider->id])">Open operations</flux:button>
+                                <flux:dropdown position="bottom" align="end">
+                                    <flux:button icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('Provider actions') }}" />
+                                    <flux:menu>
+                                    <flux:menu.item :href="route('dashboard.provider', ['provider_context' => $provider->id])">{{ __('Open operations') }}</flux:menu.item>
                                     <flux:modal.trigger :name="'edit-provider-'.$provider->id">
-                                        <flux:button class="min-h-11" variant="subtle">{{ __('Edit') }}</flux:button>
+                                        <flux:menu.item>{{ __('Edit') }}</flux:menu.item>
                                     </flux:modal.trigger>
                                     <form method="POST" action="{{ route('admin.providers.status', $provider) }}">
                                         @csrf
                                         @method('PATCH')
-                                        <flux:button class="min-h-11" type="submit">{{ $provider->is_active ? __('Deactivate') : __('Activate') }}</flux:button>
+                                        <flux:menu.item as="button" type="submit">{{ $provider->is_active ? __('Deactivate') : __('Activate') }}</flux:menu.item>
                                     </form>
-                                </div>
+                                    </flux:menu>
+                                </flux:dropdown>
                             </td>
                         </tr>
                     @empty
@@ -71,7 +74,7 @@
                     <flux:input placeholder="Enter the full name" name="name" :value="$editingThisProvider ? old('name') : $provider->name" :label="__('Provider name')" required />
                     <flux:input placeholder="e.g. north-water" name="code" :value="$editingThisProvider ? old('code') : $provider->code" :label="__('Unique code')" required />
                     <flux:input placeholder="e.g. account@example.com" name="email" type="email" :value="$editingThisProvider ? old('email') : $provider->email" :label="__('Email')" />
-                    <flux:input placeholder="e.g. 09123456789" name="phone" :value="$editingThisProvider ? old('phone') : $provider->phone" :label="__('Phone')" />
+                    <flux:input placeholder="e.g. 09123456789" name="phone" type="tel" inputmode="numeric" pattern="[0-9]*" :value="$editingThisProvider ? old('phone') : $provider->phone" :label="__('Phone')" />
                     <div class="sm:col-span-2">
                         <flux:input placeholder="Enter the office or service address" name="address" :value="$editingThisProvider ? old('address') : $provider->address" :label="__('Address')" />
                     </div>

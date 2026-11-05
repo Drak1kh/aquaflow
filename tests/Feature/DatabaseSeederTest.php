@@ -4,6 +4,7 @@ use App\Models\Bill;
 use App\Models\ClientNotice;
 use App\Models\Connection;
 use App\Models\Payment;
+use App\Models\WaterRate;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\UserRole;
@@ -20,8 +21,8 @@ test('the local seeder creates accounts and linked demo history for every role w
     $this->assertDatabaseCount('water_providers', 2);
     $this->assertDatabaseCount('consumers', 12);
     $this->assertDatabaseCount('connections', 12);
-    $this->assertDatabaseCount('meter_readings', 34);
-    $this->assertDatabaseCount('bills', 34);
+    $this->assertDatabaseCount('meter_readings', 130);
+    $this->assertDatabaseCount('bills', 130);
     $this->assertDatabaseCount('payments', 28);
     $this->assertDatabaseCount('payment_allocations', 24);
     $this->assertDatabaseCount('support_tickets', 12);
@@ -53,9 +54,9 @@ test('demo bills and payments have consistent balances and provider ownership', 
 
     $client = User::where('email', 'test@example.com')->firstOrFail();
     $bill = Bill::where('consumer_id', $client->consumer_id)->whereDate('period_month', '2026-11-01')->firstOrFail();
-    expect($bill)->previous_reading->toBe('123.000')->current_reading->toBe('133.000')
-        ->consumption->toBe('10.000')->total->toBe('175.00');
-    expect($bill->balance())->toBe('100.00');
+    expect($bill)->previous_reading->toBe('255.000')->current_reading->toBe('265.000')
+        ->consumption->toBe('10.000')->total->toBe('187.50');
+    expect($bill->balance())->toBe('112.50');
     expect($bill->paymentStatus())->toBe('Partially Paid');
     $this->assertDatabaseHas('client_notices', ['user_id' => $client->id, 'consumer_id' => $client->consumer_id, 'event_key' => 'due:'.$bill->id.':2026-11-09']);
     $this->assertDatabaseHas('bills', ['status' => 'overdue', 'late_fee' => '25.00']);
@@ -67,6 +68,15 @@ test('demo bills and payments have consistent balances and provider ownership', 
         expect($payment->consumer_id)->toBe($payment->bill->consumer_id);
         expect($payment->allocations->isNotEmpty())->toBe($payment->status === 'verified');
     }
+});
+
+test('demo history covers every month from January through the current month', function () {
+    $this->travelTo(now()->setDate(2026, 11, 4)->startOfDay());
+
+    $this->seed(DatabaseSeeder::class);
+
+    expect(Bill::where('water_provider_id', User::where('email', 'provider@example.com')->firstOrFail()->water_provider_id)->distinct('period_month')->count('period_month'))->toBe(11);
+    expect(WaterRate::where('water_provider_id', User::where('email', 'provider@example.com')->firstOrFail()->water_provider_id)->whereYear('effective_from', 2026)->count())->toBe(6);
 });
 
 test('rerunning demo seeds preserves changed passwords settings and operational records', function () {

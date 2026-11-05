@@ -50,3 +50,9 @@ test('invalid month values leave the picker unselected and display validation er
     expect($fields->query('//select/option[@selected]')->item(0)->getAttribute('value'))->toBe('');
     expect($fields->query('//input[@name="period_month"]')->item(0)->getAttribute('value'))->toBe('');
 });
+
+test('month fields dispatch their selected value to parent components', function () {
+    $view = $this->blade('<x-month-input name="period_month" required />');
+
+    expect((string) $view)->toContain("month-input-changed");
+});

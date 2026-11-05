@@ -2,16 +2,19 @@
 <div class="provider-page w-full min-w-0 space-y-6">
 <x-page-header title="Meter Readings" />
 
-<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
         @can('permission', 'connections.view')
+            <section data-meter-reading-summary class="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_2.5fr]">
+                <flux:card class="h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Recorded readings') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $recordedReadingCount }}</flux:text></flux:card>
+                <flux:card class="h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Active connections') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $activeConnectionCount }}</flux:text></flux:card>
+                <flux:card class="h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Not Active connections') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $inactiveConnectionCount }}</flux:text></flux:card>
+                <x-dashboard-chart compact class="h-40 min-w-0" :title="__('Water consumption')" :description="__('Total metered usage across your provider’s connections by reading month.')" :data="$consumptionTrend" :series="['consumption' => __('Consumption')]" unit="m3" />
+            </section>
+
             <section id="connections" class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
-                    <flux:heading level="2" size="lg">{{ __('Connections and readings') }}</flux:heading>
+                    <flux:heading level="2" size="lg">{{ __('Connections') }}</flux:heading>
                     @can('permission', 'connections.manage')
-                        <div class="flex flex-wrap gap-2">
-                            <flux:modal.trigger name="create-connection"><flux:button icon="plus">{{ __('Add connection') }}</flux:button></flux:modal.trigger>
-                            <flux:modal.trigger name="create-reading"><flux:button variant="primary">{{ __('Record reading') }}</flux:button></flux:modal.trigger>
-                        </div>
+                        <flux:modal.trigger name="create-reading"><flux:button variant="primary">{{ __('Record reading') }}</flux:button></flux:modal.trigger>
                     @endcan
                 </div>
                 <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
@@ -29,22 +32,6 @@
 
                 {{ $connections->links() }}
                 @can('permission', 'connections.manage')
-                    <flux:text>Consumer and connection choices show up to 50 matches. Use the page search to narrow the choices.</flux:text>
-                    <x-form-modal name="create-connection" :title="__('Add connection')" :action="route('provider.connections.store')" :submit-label="__('Add connection')">
-                        <div class="space-y-4">
-                            <flux:select name="consumer_id" :label="__('Consumer')" required>
-                                <option value="">{{ __('Choose consumer') }}</option>
-                                @foreach ($consumers as $consumer)
-                                    <option value="{{ $consumer->id }}" @selected(old('_form') === 'create-connection' && old('consumer_id') == $consumer->id)>{{ $consumer->name }}</option>
-                                @endforeach
-                            </flux:select>
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <flux:input placeholder="e.g. CON-000123" name="number" :value="old('_form') === 'create-connection' ? old('number') : null" :label="__('Connection number')" required />
-                                <flux:input placeholder="e.g. MTR-000123" name="meter_number" :value="old('_form') === 'create-connection' ? old('meter_number') : null" :label="__('Meter number')" required />
-                            </div>
-                            <flux:input placeholder="Select the installation date" name="installed_at" type="date" :value="old('_form') === 'create-connection' ? old('installed_at') : null" :label="__('Installation date')" />
-                        </div>
-                    </x-form-modal>
                     <x-form-modal name="create-reading" :title="__('Record meter reading')" :action="route('provider.readings.store')" :submit-label="__('Save reading')">
                         <div class="space-y-4">
                             <flux:select name="connection_id" :label="__('Connection')" required>

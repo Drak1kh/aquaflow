@@ -15,9 +15,10 @@
 <div
     {{ $attributes->class('min-w-0') }}
     x-data="{ month: @js($selectedMonth), year: @js($selectedYear) }"
+    x-effect="$dispatch('month-input-changed', { value: month && year ? String(year).padStart(4, '0') + '-' + month : '' })"
 >
     <fieldset class="space-y-2">
-        <legend class="text-sm font-medium text-zinc-800 dark:text-white">{{ __($label) }}</legend>
+        <legend class="text-sm font-medium leading-4 text-zinc-800 dark:text-white">{{ __($label) }}@if ($required) <span class="text-red-600" aria-hidden="true">*</span><span class="sr-only">{{ __('Required') }}</span>@endif</legend>
         <div class="flex items-center gap-2">
             <flux:select x-model="month" :aria-label="__($label).' — '.__('Month')" :required="$required" :invalid="$errors->has($name)">
                 <option value="" @selected($selectedMonth === '')>{{ $required ? __('Select month') : __($placeholder) }}</option>

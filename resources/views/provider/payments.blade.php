@@ -2,7 +2,13 @@
 <div class="provider-page w-full min-w-0 space-y-6">
 <x-page-header title="Payment Management" />
 
-<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
+<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end">@if ($selectedBill)<input type="hidden" name="bill" value="{{ $selectedBill->id }}">@endif<flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
+<div class="grid gap-4 sm:grid-cols-2">
+    <flux:card><flux:text>Pending review</flux:text><flux:heading class="tabular-nums" level="2">{{ $pendingPaymentCount }}</flux:heading><flux:text>Only verified payments reduce the account balance.</flux:text></flux:card>
+    @if ($selectedBill)
+        <flux:card><flux:text>Selected bill remaining</flux:text><flux:heading class="tabular-nums" level="2">₱{{ number_format((float) $selectedBill->balance(), 2) }}</flux:heading><flux:text>{{ $selectedBill->number }} · {{ $selectedBill->connection->meter_number }}</flux:text></flux:card>
+    @endif
+</div>
         @can('permission', 'payments.view')
             <section id="payments" class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -11,29 +17,39 @@
                         <flux:modal.trigger name="create-payment"><flux:button variant="primary" icon="plus">{{ __('Record payment') }}</flux:button></flux:modal.trigger>
                     @endcan
                 </div>
+                @if ($selectedBill)
+                    <flux:card class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div><flux:text>{{ __('Bill') }}</flux:text><a href="{{ route('bills.print', $selectedBill) }}" data-document-preview class="text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-brand-aqua">{{ $selectedBill->number }}</a></div>
+                        <div><flux:text>{{ __('Consumer') }}</flux:text><a href="{{ route('provider.consumers.index', ['search' => $selectedBill->consumer->account_number]) }}" class="text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-brand-aqua">{{ $selectedBill->consumer->name }}</a></div>
+                        <div><flux:text>{{ __('Meter and month') }}</flux:text><flux:text>{{ $selectedBill->connection->meter_number }} · {{ $selectedBill->period_month->format('M Y') }}</flux:text></div>
+                        <div><flux:text>{{ __('Usage') }}</flux:text><flux:text class="tabular-nums">{{ $selectedBill->consumption }} m³</flux:text></div>
+                        <div><flux:text>{{ __('Total') }}</flux:text><flux:text class="tabular-nums">₱{{ number_format((float) $selectedBill->total, 2) }}</flux:text></div>
+                        <div><flux:text>{{ __('Remaining') }}</flux:text><flux:text class="tabular-nums">₱{{ number_format((float) $selectedBill->balance(), 2) }}</flux:text></div>
+                        <div><flux:text>{{ __('Payment status') }}</flux:text><flux:text>{{ $selectedBill->paymentStatus() }}</flux:text></div>
+                    </flux:card>
+                @endif
                 <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
                     <table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700">
-                        <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">{{ __('Reference') }}</th><th scope="col" class="px-4 py-3">{{ __('Consumer') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Amount') }}</th><th scope="col" class="px-4 py-3">{{ __('Status') }}</th><th scope="col" class="px-4 py-3">{{ __('Action') }}</th></tr></thead>
+                        <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">{{ __('Reference') }}</th><th scope="col" class="px-4 py-3">{{ __('Consumer') }}</th><th scope="col" class="px-4 py-3">{{ __('Bill') }}</th><th scope="col" class="px-4 py-3">{{ __('Meter') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Amount') }}</th><th scope="col" class="px-4 py-3">{{ __('Status') }}</th><th scope="col" class="px-4 py-3">{{ __('Action') }}</th></tr></thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @forelse ($payments as $payment)
                                 <tr>
                                     <td class="px-4 py-3">{{ $payment->reference }} @if ($payment->proof_path)<a href="{{ route('payments.proof', $payment) }}">Proof</a>@endif @if ($payment->status === 'verified')<a href="{{ route('payments.print', $payment) }}" data-document-preview>Receipt</a>@endif</td>
                                     <td class="px-4 py-3">{{ $payment->consumer->name }}</td>
+                                    <td class="px-4 py-3">{{ $payment->bill->number }}</td>
+                                    <td class="px-4 py-3">{{ $payment->bill->connection->meter_number }}</td>
                                     <td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $payment->amount, 2) }}</td>
                                     <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
                                     <td class="px-4 py-3">
                                         @if ($payment->status === 'pending')
                                             @can('permission', 'payments.verify')
-                                                <div class="flex flex-wrap gap-2">
-                                                    <form method="POST" action="{{ route('provider.payments.verify', $payment) }}">@csrf<flux:button class="min-h-11" type="submit">{{ __('Verify') }}</flux:button></form>
-                                                    <flux:button :href="request()->fullUrlWithQuery(['reject_payment' => $payment->id])" class="min-h-11" variant="danger">{{ __('Reject') }}</flux:button>
-                                                </div>
+                                                <flux:dropdown position="bottom" align="end"><flux:button icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('Payment actions') }}" /><flux:menu><form method="POST" action="{{ route('provider.payments.verify', $payment) }}">@csrf<flux:menu.item as="button" type="submit">{{ __('Verify') }}</flux:menu.item></form><flux:menu.item :href="request()->fullUrlWithQuery(['reject_payment' => $payment->id])">{{ __('Reject') }}</flux:menu.item></flux:menu></flux:dropdown>
                                             @endcan
                                         @endif
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5" class="px-4 py-8 text-center">{{ __('No payments recorded yet.') }}</td></tr>
+                                <tr><td colspan="7" class="px-4 py-8 text-center">{{ __('No payments recorded yet.') }}</td></tr>
                             @endforelse
                         </tbody>
                     </table>

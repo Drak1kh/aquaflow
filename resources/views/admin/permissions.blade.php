@@ -20,7 +20,7 @@
                     <flux:text class="mt-1">{{ __(':enabled of :total actions enabled', ['enabled' => $enabledCount, 'total' => count($availablePermissions)]) }}</flux:text>
                 </div>
                 <flux:modal.trigger :name="'edit-permissions-'.$role->value">
-                    <flux:button icon="pencil-square">{{ __('Edit permissions') }}</flux:button>
+                    <flux:button class="aquaflow-edit-action" icon="pencil-square">{{ __('Edit permissions') }}</flux:button>
                 </flux:modal.trigger>
             </div>
 

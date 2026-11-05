@@ -1,4 +1,4 @@
-@props(['title', 'description', 'data', 'series', 'unit' => 'PHP'])
+@props(['title', 'description', 'data', 'series', 'unit' => 'PHP', 'compact' => false])
 
 @php
     $maximum = 0;
@@ -11,10 +11,12 @@
     $precision = $unit === 'PHP' ? 2 : 3;
 @endphp
 
-<flux:card {{ $attributes->class('min-w-0 space-y-5') }}>
-    <div class="space-y-2">
+<flux:card {{ $attributes->class(['min-w-0', 'space-y-3' => $compact, 'space-y-5' => ! $compact]) }}>
+    <div @class(['space-y-1' => $compact, 'space-y-2' => ! $compact])>
         <flux:heading level="2" size="lg">{{ $title }}</flux:heading>
-        <flux:text>{{ $description }}</flux:text>
+        @unless ($compact)
+            <flux:text>{{ $description }}</flux:text>
+        @endunless
         <flux:text class="text-sm">{{ $data[0]['month'] }} – {{ $data[count($data) - 1]['month'] }} · {{ $unit }}</flux:text>
     </div>
 
@@ -29,8 +31,8 @@
 
     @if ($maximum > 0)
         <div class="overflow-x-auto" tabindex="0" role="region" aria-label="{{ $title }}">
-            <svg viewBox="0 0 640 260" class="h-auto w-full min-w-[26rem]" role="img" aria-label="{{ $title }}">
-                <title>{{ $title }} — {{ __('Monthly values are available in the data table below.') }}</title>
+            <svg viewBox="0 0 640 260" @class(['h-auto w-full', 'min-w-[26rem]' => ! $compact]) role="img" aria-label="{{ $title }}">
+                <title>{{ $title }} — {{ $compact ? __('Monthly usage values.') : __('Monthly values are available in the data table below.') }}</title>
                 @foreach ([0, 0.5, 1] as $fraction)
                     @php $y = 212 - $fraction * 184; @endphp
                     <line x1="76" x2="614" y1="{{ $y }}" y2="{{ $y }}" stroke="currentColor" class="text-zinc-200 dark:text-zinc-700" />
@@ -60,11 +62,12 @@
             </svg>
         </div>
     @else
-        <div class="flex min-h-48 items-center justify-center text-center">
+        <div @class(['flex items-center justify-center text-center', 'min-h-32' => $compact, 'min-h-48' => ! $compact])>
             <flux:text>{{ __('No activity recorded in this period.') }}</flux:text>
         </div>
     @endif
 
+    @unless ($compact)
     <details class="group">
         <summary class="cursor-pointer rounded-sm text-sm font-medium text-brand-ink underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-aqua dark:text-brand-mist">{{ __('View monthly values') }}</summary>
         <div class="mt-4 overflow-x-auto">
@@ -79,4 +82,5 @@
             </table>
         </div>
     </details>
+    @endunless
 </flux:card>
