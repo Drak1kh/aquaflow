@@ -106,6 +106,7 @@ class OperationsController extends Controller
             $selectedBill = $request->filled('bill') ? Bill::with(['consumer', 'connection', 'allocations'])->where('water_provider_id', $providerId)->findOrFail($request->input('bill')) : null;
             $payments = Payment::with(['consumer', 'bill.connection'])->where('water_provider_id', $providerId)
                 ->when($selectedBill, fn ($q) => $q->where('bill_id', $selectedBill->id))
+                ->when($request->filled('period'), fn ($q) => $q->where('paid_at', '>=', $request->input('period').'-01')->where('paid_at', '<', CarbonImmutable::parse($request->input('period').'-01')->addMonth()))
                 ->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)));
             $data += [
                 'payments' => $payments->latest('id')->paginate(20)->withQueryString(),

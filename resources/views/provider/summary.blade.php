@@ -20,7 +20,7 @@
                 </div>
             @endif
             <form method="GET" class="flex flex-wrap items-end gap-3">
-                <x-month-input name="month" label="Billing month" :value="request('month')" />
+                <flux:input name="month" type="month" label="Billing month" :value="request('month')" />
                 <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer name or account" :value="request('search')" />
                 <flux:input placeholder="Start date" name="from" type="date" label="From" :value="request('from')" />
                 <flux:input placeholder="End date" name="to" type="date" label="To" :value="request('to')" />

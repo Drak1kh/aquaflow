@@ -2,13 +2,13 @@
 <div class="provider-page w-full min-w-0 space-y-6">
 <x-page-header title="Payment Management" />
 
-<form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end">@if ($selectedBill)<input type="hidden" name="bill" value="{{ $selectedBill->id }}">@endif<flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
 <div class="grid gap-4 sm:grid-cols-2">
     <flux:card><flux:text>Pending review</flux:text><flux:heading class="tabular-nums" level="2">{{ $pendingPaymentCount }}</flux:heading><flux:text>Only verified payments reduce the account balance.</flux:text></flux:card>
     @if ($selectedBill)
         <flux:card><flux:text>Selected bill remaining</flux:text><flux:heading class="tabular-nums" level="2">₱{{ number_format((float) $selectedBill->balance(), 2) }}</flux:heading><flux:text>{{ $selectedBill->number }} · {{ $selectedBill->connection->meter_number }}</flux:text></flux:card>
     @endif
 </div>
+<form method="GET" class="flex flex-wrap items-end gap-3">@if ($selectedBill)<input type="hidden" name="bill" value="{{ $selectedBill->id }}">@endif<flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:input name="period" type="month" label="Payment month" :value="request('period')" /><flux:button type="submit">Search</flux:button></form>
         @can('permission', 'payments.view')
             <section id="payments" class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -33,18 +33,19 @@
                         <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">{{ __('Reference') }}</th><th scope="col" class="px-4 py-3">{{ __('Consumer') }}</th><th scope="col" class="px-4 py-3">{{ __('Bill') }}</th><th scope="col" class="px-4 py-3">{{ __('Meter') }}</th><th scope="col" class="px-4 py-3 text-right">{{ __('Amount') }}</th><th scope="col" class="px-4 py-3">{{ __('Status') }}</th><th scope="col" class="px-4 py-3">{{ __('Action') }}</th></tr></thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @forelse ($payments as $payment)
-                                <tr>
-                                    <td class="px-4 py-3">{{ $payment->reference }} @if ($payment->proof_path)<a href="{{ route('payments.proof', $payment) }}">Proof</a>@endif @if ($payment->status === 'verified')<a href="{{ route('payments.print', $payment) }}" data-document-preview>Receipt</a>@endif</td>
+                                @php($documentUrl = $payment->status === 'verified' ? route('payments.print', $payment) : ($payment->proof_path ? route('payments.proof', $payment) : null))
+                                @php($isReceipt = $payment->status === 'verified')
+                                @php($canVerify = auth()->user()->can('permission', 'payments.verify'))
+                                <tr @if ($documentUrl) x-data x-on:click="if (! $event.target.closest('a, button, form')) $refs.document.click()" x-on:keydown.enter.prevent="$refs.document.click()" class="cursor-pointer" role="link" tabindex="0" @endif>
+                                    <td class="px-4 py-3">@if ($isReceipt)<a x-ref="document" href="{{ $documentUrl }}" data-document-preview>{{ $payment->reference }}</a>@elseif ($documentUrl)<a x-ref="document" href="{{ $documentUrl }}">{{ $payment->reference }}</a>@else{{ $payment->reference }}@endif</td>
                                     <td class="px-4 py-3">{{ $payment->consumer->name }}</td>
                                     <td class="px-4 py-3">{{ $payment->bill->number }}</td>
                                     <td class="px-4 py-3">{{ $payment->bill->connection->meter_number }}</td>
                                     <td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $payment->amount, 2) }}</td>
-                                    <td class="px-4 py-3">{{ ucfirst($payment->status) }}</td>
+                                    <td class="px-4 py-3">@if ($payment->status === 'verified')<flux:badge color="yellow">{{ __('Verified') }}</flux:badge>@elseif ($payment->status === 'rejected')<flux:badge color="red">{{ __('Rejected') }}</flux:badge>@else<flux:badge color="zinc">{{ ucfirst($payment->status) }}</flux:badge>@endif</td>
                                     <td class="px-4 py-3">
-                                        @if ($payment->status === 'pending')
-                                            @can('permission', 'payments.verify')
-                                                <flux:dropdown position="bottom" align="end"><flux:button icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('Payment actions') }}" /><flux:menu><form method="POST" action="{{ route('provider.payments.verify', $payment) }}">@csrf<flux:menu.item as="button" type="submit">{{ __('Verify') }}</flux:menu.item></form><flux:menu.item :href="request()->fullUrlWithQuery(['reject_payment' => $payment->id])">{{ __('Reject') }}</flux:menu.item></flux:menu></flux:dropdown>
-                                            @endcan
+                                        @if ($documentUrl || ($payment->status === 'pending' && $canVerify))
+                                            <flux:dropdown position="bottom" align="end"><flux:button class="size-11" icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('Payment actions') }}" /><flux:menu>@if ($isReceipt)<flux:menu.item :href="$documentUrl" data-document-preview>{{ __('View receipt') }}</flux:menu.item>@elseif ($documentUrl)<flux:menu.item :href="$documentUrl">{{ __('View proof') }}</flux:menu.item>@endif @if ($payment->status === 'pending' && $canVerify)<form method="POST" action="{{ route('provider.payments.verify', $payment) }}">@csrf<flux:menu.item as="button" type="submit">{{ __('Verify') }}</flux:menu.item></form><flux:menu.item :href="request()->fullUrlWithQuery(['reject_payment' => $payment->id])">{{ __('Reject') }}</flux:menu.item>@endif</flux:menu></flux:dropdown>
                                         @endif
                                     </td>
                                 </tr>

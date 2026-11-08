@@ -55,8 +55,8 @@
                                     <option value="{{ $connection->id }}" @selected((old('_form') === 'create-bill' ? old('connection_id') : request('connection')) == $connection->id)>{{ $connection->number }}</option>
                                 @endforeach
                             </flux:select>
-                            <div x-data="{ dueDate: @js(old('due_at', now()->endOfMonth()->toDateString())), monthStart: @js(now()->format('Y-m')) }" x-on:month-input-changed="monthStart = $event.detail.value; if (!monthStart) return; const [year, month] = monthStart.split('-').map(Number); const date = new Date(year, month, 0); dueDate = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')).join('-')" class="space-y-4">
-                                <x-month-input name="period_month" :value="old('_form') === 'create-bill' ? old('period_month') : request('month')" :label="__('Month')" required />
+                            <div x-data="{ dueDate: @js(old('due_at', now()->endOfMonth()->toDateString())), monthStart: @js(old('_form') === 'create-bill' ? old('period_month') : request('month', now()->format('Y-m'))) }" class="space-y-4">
+                                <flux:input x-model="monthStart" x-on:input="if (!monthStart) return; const [year, month] = monthStart.split('-').map(Number); const date = new Date(year, month, 0); dueDate = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')).join('-')" name="period_month" type="month" :label="__('Month')" required />
                                 <flux:field>
                                     <flux:label for="due_at">{{ __('Due date') }} <span class="text-red-600" aria-hidden="true">*</span><span class="sr-only">{{ __('Required') }}</span></flux:label>
                                     <flux:input id="due_at" name="due_at" type="date" x-model="dueDate" x-bind:min="monthStart ? monthStart + '-01' : null" required />

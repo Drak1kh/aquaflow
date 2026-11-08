@@ -43,7 +43,7 @@
                             <flux:input placeholder="e.g. 100.000" :value="old('_form') === 'create-reading' ? old('previous_reading') : null" name="previous_reading" type="number" step="0.001" min="0" label="Initial previous reading (first reading only)" />
                             <flux:text>Later readings use the last recorded reading automatically.</flux:text>
                             <div class="grid gap-4 sm:grid-cols-2">
-                                <x-month-input name="period_month" :value="old('_form') === 'create-reading' ? old('period_month') : null" :label="__('Billing month')" required />
+                                <flux:input name="period_month" type="month" :value="old('_form') === 'create-reading' ? old('period_month') : null" :label="__('Billing month')" required />
                                 <flux:input placeholder="e.g. 115.500" name="current_reading" type="number" step="0.001" min="0" :value="old('_form') === 'create-reading' ? old('current_reading') : null" :label="__('Current meter reading')" required />
                             </div>
                         </div>

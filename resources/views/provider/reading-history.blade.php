@@ -1,7 +1,7 @@
 <section class="space-y-4">
     <flux:heading level="2" size="lg">Meter reading history</flux:heading>
     <form method="GET" class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <x-month-input name="period" label="Reading month" :value="request('period')" />
+        <flux:input name="period" type="month" label="Reading month" :value="request('period')" />
         <flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer name or account" :value="request('search')" />
         <flux:button type="submit">Filter connections and history</flux:button>
     </form>
