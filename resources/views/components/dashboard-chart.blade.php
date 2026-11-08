@@ -9,6 +9,8 @@
     }
     $scale = max(1, $maximum);
     $precision = $unit === 'PHP' ? 2 : 3;
+    $plotBottom = $compact ? 108 : 212;
+    $plotHeight = $compact ? 80 : 184;
 @endphp
 
 <flux:card {{ $attributes->class(['min-w-0', 'space-y-3' => $compact, 'space-y-5' => ! $compact]) }}>
@@ -31,10 +33,10 @@
 
     @if ($maximum > 0)
         <div class="overflow-x-auto" tabindex="0" role="region" aria-label="{{ $title }}">
-            <svg viewBox="0 0 640 260" @class(['h-auto w-full', 'min-w-[26rem]' => ! $compact]) role="img" aria-label="{{ $title }}">
+            <svg viewBox="0 0 640 {{ $compact ? 140 : 260 }}" @class(['w-full', 'h-24' => $compact, 'h-auto min-w-[26rem]' => ! $compact]) role="img" aria-label="{{ $title }}">
                 <title>{{ $title }} — {{ $compact ? __('Monthly usage values.') : __('Monthly values are available in the data table below.') }}</title>
                 @foreach ([0, 0.5, 1] as $fraction)
-                    @php $y = 212 - $fraction * 184; @endphp
+                    @php $y = $plotBottom - $fraction * $plotHeight; @endphp
                     <line x1="76" x2="614" y1="{{ $y }}" y2="{{ $y }}" stroke="currentColor" class="text-zinc-200 dark:text-zinc-700" />
                     <text x="66" y="{{ $y + 5 }}" text-anchor="end" fill="currentColor" class="fill-current text-sm text-zinc-600 dark:text-zinc-300">{{ number_format($scale * $fraction, $scale < 10 ? 1 : 0) }}</text>
                 @endforeach
@@ -43,13 +45,13 @@
                     @php
                         $points = [];
                         foreach ($data as $index => $row) {
-                            $points[] = (76 + $index * 538 / (count($data) - 1)).','.(212 - (float) $row[$field] / $scale * 184);
+                            $points[] = (76 + $index * 538 / (count($data) - 1)).','.($plotBottom - (float) $row[$field] / $scale * $plotHeight);
                         }
                     @endphp
                     <g @class(['text-brand-aqua' => $loop->first, 'text-brand-ocean dark:text-brand-mist' => !$loop->first])>
                         <polyline points="{{ implode(' ', $points) }}" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="{{ $loop->first ? 'none' : '7 5' }}" stroke-linejoin="round" />
                         @foreach ($data as $index => $row)
-                            <circle cx="{{ 76 + $index * 538 / (count($data) - 1) }}" cy="{{ 212 - (float) $row[$field] / $scale * 184 }}" r="4" fill="currentColor">
+                            <circle cx="{{ 76 + $index * 538 / (count($data) - 1) }}" cy="{{ $plotBottom - (float) $row[$field] / $scale * $plotHeight }}" r="4" fill="currentColor">
                                 <title>{{ $row['month'] }} · {{ $label }}: {{ number_format((float) $row[$field], $precision) }} {{ $unit }}</title>
                             </circle>
                         @endforeach
@@ -57,12 +59,12 @@
                 @endforeach
 
                 @foreach ($data as $index => $row)
-                    <text x="{{ 76 + $index * 538 / (count($data) - 1) }}" y="246" text-anchor="middle" fill="currentColor" class="fill-current text-sm text-zinc-600 dark:text-zinc-300">{{ substr($row['month'], 0, 3) }}</text>
+                    <text x="{{ 76 + $index * 538 / (count($data) - 1) }}" y="{{ $compact ? 130 : 246 }}" text-anchor="middle" fill="currentColor" class="fill-current text-sm text-zinc-600 dark:text-zinc-300">{{ substr($row['month'], 0, 3) }}</text>
                 @endforeach
             </svg>
         </div>
     @else
-        <div @class(['flex items-center justify-center text-center', 'min-h-32' => $compact, 'min-h-48' => ! $compact])>
+        <div @class(['flex items-center justify-center text-center', 'min-h-24' => $compact, 'min-h-48' => ! $compact])>
             <flux:text>{{ __('No activity recorded in this period.') }}</flux:text>
         </div>
     @endif

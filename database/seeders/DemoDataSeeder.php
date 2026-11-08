@@ -39,12 +39,12 @@ class DemoDataSeeder extends Seeder
                 SystemSetting::firstOrCreate(['key' => $key], ['value' => $value]);
             }
 
-            $this->provider('demo-water', 'San Isidro Waterworks (Demo)', 'provider@example.com', 'DEMO', [
-                'Maria Santos', 'Juan Dela Cruz', 'Ana Reyes', 'Carlo Mendoza', 'Liza Garcia', 'Ramon Flores',
-            ]);
-            $this->provider('riverside-demo', 'Riverside Water Services (Demo)', 'riverside.provider@example.com', 'RIVER', [
-                'Elena Ramos', 'Miguel Torres', 'Sofia Aquino', 'Paolo Cruz', 'Rosa Castillo', 'Luis Navarro',
-            ]);
+            $this->provider('demo-water', 'Tagoloan Community Waterworks (Demo)', 'provider@example.com', 'DEMO', [
+                'Maria Lourdes Abellanosa', 'Juan Miguel Dela Cruz', 'Ana Mae Cabahug', 'Carlo James Emano', 'Liza Mae Acosta', 'Ramon Balaba',
+            ], ['Poblacion', 'Baluarte', 'Casinglot']);
+            $this->provider('riverside-demo', 'Baluarte Community Water Services (Demo)', 'riverside.provider@example.com', 'RIVER', [
+                'Elena Mae Bacalso', 'Miguel Angelo Salcedo', 'Sofia Mae Lumantas', 'Paolo James Galarrita', 'Rosa Mae Sabal', 'Luis Miguel Cabanos',
+            ], ['Baluarte', 'Casinglot', 'Poblacion']);
         });
     }
 
@@ -54,12 +54,15 @@ class DemoDataSeeder extends Seeder
         return User::where('email', $attributes['email'])->first() ?? User::factory()->create($attributes);
     }
 
-    /** @param list<string> $names */
-    private function provider(string $code, string $name, string $email, string $prefix, array $names): void
+    /**
+     * @param  list<string>  $names
+     * @param  list<string>  $barangays
+     */
+    private function provider(string $code, string $name, string $email, string $prefix, array $names, array $barangays): void
     {
         $provider = WaterProvider::firstOrCreate(['code' => $code], [
-            'name' => $name, 'email' => $email, 'phone' => '02 8555 0100',
-            'address' => '12 Waterworks Road, Barangay San Isidro (Demo office)',
+            'name' => $name, 'email' => $email, 'phone' => '0917 000 0100',
+            'address' => 'Barangay '.$barangays[0].', Tagoloan, Misamis Oriental, Northern Mindanao (Demo office)',
             'due_days' => 14, 'grace_days' => 7, 'late_fee' => '25.00', 'is_active' => true,
         ]);
         $staff = $this->account(['name' => $name.' Staff', 'email' => $email, 'role' => UserRole::WaterProvider, 'water_provider_id' => $provider->id]);
@@ -88,7 +91,7 @@ class DemoDataSeeder extends Seeder
             $consumerEmail = $prefix === 'DEMO' && $index === 0 ? 'test@example.com' : strtolower($prefix).'.client'.($index + 1).'@example.com';
             $consumer = Consumer::firstOrCreate(['water_provider_id' => $provider->id, 'account_number' => $accountNumber], [
                 'name' => $consumerName, 'email' => $consumerEmail, 'phone' => '0917 555 '.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
-                'address' => ($index + 10).' Sampaguita Street, Barangay '.($prefix === 'DEMO' ? 'San Isidro' : 'Riverside').' (Demo address)', 'is_active' => true,
+                'address' => 'Purok '.($index + 1).', Barangay '.$barangays[$index % count($barangays)].', Tagoloan, Misamis Oriental, Northern Mindanao (Demo address)', 'is_active' => true,
             ]);
             if (! $consumer->portalUser()->exists()) {
                 $this->account(['name' => $consumer->name, 'email' => $consumerEmail, 'role' => UserRole::Consumer, 'consumer_id' => $consumer->id]);
@@ -132,7 +135,9 @@ class DemoDataSeeder extends Seeder
                 'water_provider_id' => $connection->water_provider_id, 'previous_reading' => $previous,
                 'current_reading' => bcadd($previous, (string) (10 + $index * 2 + $monthsAgo), 3), 'recorded_by' => $staff->id,
             ]);
-            $bill = $billing->generate($connection, $month, $staff);
+            $billingPeriod = BillingPeriod::where('water_provider_id', $connection->water_provider_id)
+                ->whereDate('period_month', $month)->firstOrFail();
+            $bill = $billing->generate($connection, $month, $billingPeriod->due_at->toDateString(), $staff);
             $bill->update(['created_at' => $month, 'updated_at' => $month]);
             if ($monthsAgo === 2 || ($monthsAgo === 1 && ! in_array($index, [2, 5], true)) || ($monthsAgo === 0 && $index === 1)) {
                 $this->payment($bill, $staff, $bill->total, 'verified');
