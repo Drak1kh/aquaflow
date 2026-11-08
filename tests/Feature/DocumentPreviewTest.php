@@ -12,6 +12,7 @@ test('bill previews are branded standalone documents with preserved charges', fu
         ->assertOk()->assertSee('data-print-document', false)->assertSee('alt="AquaFlow"', false)
         ->assertSee($bill->number)->assertSee($bill->consumer->account_number)
         ->assertSee('₱150.25')->assertSee('Charges and meter readings')
+        ->assertSee('.embedded .document { width: 100%; max-width: none; margin: 0; border: 0; }', false)
         ->assertDontSee('<div class="document-toolbar">', false)->assertDontSee('data-flux-sidebar', false);
 
     $this->get(route('bills.print', $bill))->assertOk()->assertSee('<div class="document-toolbar">', false);

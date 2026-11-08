@@ -18,6 +18,11 @@
                     <flux:text>Review unpaid bills before starting a service action. Balances shown here are bill-specific.</flux:text>
                     <flux:button :href="route('provider.service.index')">Disconnection &amp; Reconnection</flux:button>
                 </div>
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <flux:card><flux:text>Outstanding balance</flux:text><flux:heading class="tabular-nums" level="2">₱{{ bcadd((string) $outstanding, '0', 2) }}</flux:heading></flux:card>
+                    <flux:card><flux:text>Unpaid bills</flux:text><flux:heading class="tabular-nums" level="2">{{ $billCount }}</flux:heading></flux:card>
+                    <flux:card><flux:text>Overdue bills</flux:text><flux:heading class="tabular-nums" level="2">{{ $overdueBillCount }}</flux:heading></flux:card>
+                </div>
             @endif
             <form method="GET" class="flex flex-wrap items-end gap-3">
                 <flux:input name="month" type="month" label="Billing month" :value="request('month')" />
@@ -38,40 +43,48 @@
                 </flux:card>
             @endif
             @if ($section === 'balances')
-                <div class="grid gap-4 sm:grid-cols-3">
-                    <flux:card><flux:text>Outstanding balance</flux:text><flux:heading class="tabular-nums" level="2">₱{{ bcadd((string) $outstanding, '0', 2) }}</flux:heading></flux:card>
-                    <flux:card><flux:text>Unpaid bills</flux:text><flux:heading class="tabular-nums" level="2">{{ $billCount }}</flux:heading></flux:card>
-                    <flux:card><flux:text>Overdue bills</flux:text><flux:heading class="tabular-nums" level="2">{{ $overdueBillCount }}</flux:heading></flux:card>
-                </div>
                 <flux:heading level="2">Bills requiring attention</flux:heading>
             @else
                 <flux:heading level="2">Outstanding: ₱{{ bcadd((string) $outstanding, '0', 2) }}</flux:heading>
             @endif
             @foreach ($bills as $bill)
                 @if ($section === 'reports' || bccomp($bill->balance(), '0', 2) > 0)
-                    <flux:card class="space-y-4">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <flux:heading level="2">{{ $bill->consumer->name }}</flux:heading>
-                                <flux:text>Account {{ $bill->consumer->account_number }} · Meter {{ $bill->connection?->meter_number ?? '—' }}</flux:text>
+                    @if ($section === 'balances')
+                        @php($paymentStatus = $bill->paymentStatus())
+                        @php($statusColor = match ($paymentStatus) { 'Overdue' => 'red', 'Partially Paid' => 'yellow', 'Unpaid' => 'zinc', default => 'zinc' })
+                        <flux:card class="overflow-x-auto w-fit max-w-full p-0">
+                            <div class="flex min-w-max divide-x divide-zinc-200 dark:divide-zinc-700">
+                                <div class="w-48 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Name') }}</flux:text><flux:text class="truncate font-medium">{{ $bill->consumer->name }}</flux:text></div>
+                                <div class="w-32 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Account') }}</flux:text><flux:text>{{ $bill->consumer->account_number }}</flux:text></div>
+                                <div class="w-32 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Meter') }}</flux:text><flux:text>{{ $bill->connection?->meter_number ?? '—' }}</flux:text></div>
+                                <div class="w-32 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Bill') }}</flux:text><a href="{{ route('bills.print', $bill) }}" data-document-preview class="font-medium text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-brand-aqua">{{ $bill->number }}</a></div>
+                                <div class="w-36 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Due date') }}</flux:text><flux:text>{{ $bill->due_at->format('M d, Y') }}</flux:text></div>
+                                <div class="w-36 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Remaining') }}</flux:text><flux:text class="font-medium tabular-nums">₱{{ $bill->balance() }}</flux:text></div>
+                                <div class="w-32 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Penalty') }}</flux:text><flux:text class="tabular-nums">₱{{ $bill->late_fee }}</flux:text>
+                                    @if (!$bill->late_fee_applied_at && bccomp($lateFee, '0', 2) > 0 && $bill->due_at->copy()->addDays($graceDays)->isBefore(today()))
+                                        <form class="mt-2" method="POST" action="{{ route('provider.bills.penalty', $bill) }}">@csrf<flux:button type="submit">{{ __('Apply eligible penalty') }}</flux:button></form>
+                                    @endif
+                                </div>
+                                <div class="w-32 px-4 py-3"><flux:text class="text-xs font-medium uppercase tracking-wide">{{ __('Status') }}</flux:text><flux:badge :color="$statusColor">{{ $paymentStatus }}</flux:badge></div>
                             </div>
-                            <flux:badge>{{ ucfirst(str_replace('_', ' ', $bill->paymentStatus())) }}</flux:badge>
-                        </div>
-                        <div class="grid gap-3 text-sm sm:grid-cols-4">
-                            <div><flux:text>Bill</flux:text><a href="{{ route('bills.print', $bill) }}" data-document-preview class="text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-brand-aqua">{{ $bill->number }}</a></div>
-                            <div><flux:text>Due date</flux:text><flux:text>{{ $bill->due_at->format('M d, Y') }}</flux:text></div>
-                            <div><flux:text>Remaining</flux:text><flux:text class="tabular-nums">₱{{ $bill->balance() }}</flux:text></div>
-                            <div><flux:text>Penalty ₱{{ $bill->late_fee }}</flux:text></div>
-                        </div>
-                        @if ($section === 'balances')
-                            <flux:button :href="route('provider.payments.index', ['bill' => $bill->id])">Review payments</flux:button>
-                        @endif
-                    @if ($section === 'balances' && !$bill->late_fee_applied_at && bccomp($lateFee, '0', 2) > 0 && $bill->due_at->copy()->addDays($graceDays)->isBefore(today()))
-                        <form method="POST" action="{{ route('provider.bills.penalty', $bill) }}">@csrf<flux:button type="submit">Apply eligible penalty</flux:button></form>
-                    @elseif ($section === 'balances')
-                        <flux:text>{{ $bill->late_fee_applied_at ? 'Penalty already applied.' : (bccomp($lateFee, '0', 2) <= 0 ? 'No late fee is configured.' : 'Penalty becomes available after the grace period.') }}</flux:text>
+                        </flux:card>
+                    @else
+                        <flux:card class="space-y-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <flux:heading level="2">{{ $bill->consumer->name }}</flux:heading>
+                                    <flux:text>Account {{ $bill->consumer->account_number }} · Meter {{ $bill->connection?->meter_number ?? '—' }}</flux:text>
+                                </div>
+                                <flux:badge>{{ ucfirst(str_replace('_', ' ', $bill->paymentStatus())) }}</flux:badge>
+                            </div>
+                            <div class="grid gap-3 text-sm sm:grid-cols-4">
+                                <div><flux:text>Bill</flux:text><a href="{{ route('bills.print', $bill) }}" data-document-preview class="text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-brand-aqua">{{ $bill->number }}</a></div>
+                                <div><flux:text>Due date</flux:text><flux:text>{{ $bill->due_at->format('M d, Y') }}</flux:text></div>
+                                <div><flux:text>Remaining</flux:text><flux:text class="tabular-nums">₱{{ $bill->balance() }}</flux:text></div>
+                                <div><flux:text>Penalty ₱{{ $bill->late_fee }}</flux:text></div>
+                            </div>
+                        </flux:card>
                     @endif
-                    </flux:card>
                 @endif
             @endforeach
             @if ($bills->isEmpty())<flux:text>No bills match these filters.</flux:text>@endif

@@ -1,6 +1,15 @@
 <x-layouts::app title="Consumer Management">
 <div class="provider-page w-full min-w-0 space-y-6">
-<x-page-header title="Consumer Management" />
+@if ($previewedConsumer)
+    @php($consumerIndexUrl = request()->fullUrlWithQuery(['preview_consumer' => null, 'edit_consumer' => null, 'portal_consumer' => null, 'period' => null]))
+    @php($consumerDetailUrl = request()->fullUrlWithQuery(['period' => null]))
+    <x-page-header :title="$previewedConsumer->name" :description="$previewedConsumer->account_number" :back-href="$consumerIndexUrl" :back-label="__('Back to consumers')" />
+    <flux:breadcrumbs>
+        <flux:breadcrumbs.item :href="$consumerIndexUrl">{{ __('Consumer Management') }}</flux:breadcrumbs.item>
+        <flux:breadcrumbs.item>{{ $previewedConsumer->name }}</flux:breadcrumbs.item>
+    </flux:breadcrumbs>
+@else
+    <x-page-header title="Consumer Management" />
 
 <form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input placeholder="Search by consumer name or account number" name="search" label="Search consumer name or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
         @can('permission', 'consumers.view')
@@ -17,16 +26,17 @@
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @forelse ($consumers as $consumer)
                                 <tr>
-                                    <td class="px-4 py-3">{{ $consumer->account_number }}</td>
-                                    <td class="px-4 py-3">{{ $consumer->name }}</td>
+                                    <td class="px-4 py-3"><a href="{{ request()->fullUrlWithQuery(['preview_consumer' => $consumer->id, 'edit_consumer' => null, 'portal_consumer' => null]) }}" class="font-medium text-brand-primary no-underline dark:text-brand-aqua">{{ $consumer->account_number }}</a></td>
+                                    <td class="px-4 py-3"><a href="{{ request()->fullUrlWithQuery(['preview_consumer' => $consumer->id, 'edit_consumer' => null, 'portal_consumer' => null]) }}" class="font-medium text-brand-primary no-underline dark:text-brand-aqua">{{ $consumer->name }}</a></td>
                                     <td class="px-4 py-3">{{ $consumer->phone }}<br>{{ $consumer->email }}</td><td class="px-4 py-3">{{ $consumer->address }}</td><td class="px-4 py-3">@forelse ($consumer->connections as $connection)<div>{{ $connection->number }} · {{ $connection->meter_number }}</div><div class="text-sm text-zinc-500 dark:text-zinc-400">{{ $connection->installed_at?->format('M d, Y') ?? __('Installation date not recorded') }}</div>@empty — @endforelse</td>
                                     <td class="px-4 py-3">{{ $consumer->portalUser ? __('Active') : __('Not activated') }}</td>
                                     <td class="px-4 py-3"><flux:badge :color="$consumer->is_active ? 'green' : 'zinc'">{{ $consumer->is_active ? __('Active') : __('Inactive') }}</flux:badge></td>
                                     <td class="px-4 py-3">
-                                        @can('permission', 'consumers.manage')
-                                            <flux:dropdown position="bottom" align="end">
-                                                <flux:button icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('Consumer actions') }}" />
-                                                <flux:menu>
+                                        <flux:dropdown position="bottom" align="end">
+                                            <flux:button icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('Consumer actions') }}" />
+                                            <flux:menu>
+                                                <flux:menu.item :href="request()->fullUrlWithQuery(['preview_consumer' => $consumer->id, 'edit_consumer' => null, 'portal_consumer' => null])">{{ __('View') }}</flux:menu.item>
+                                                @can('permission', 'consumers.manage')
                                                 <flux:menu.item :href="request()->fullUrlWithQuery(['edit_consumer' => $consumer->id, 'portal_consumer' => null])">{{ __('Edit') }}</flux:menu.item>
                                                 @if (! $consumer->portalUser)
                                                     <flux:menu.item :href="request()->fullUrlWithQuery(['portal_consumer' => $consumer->id, 'edit_consumer' => null])">{{ __('Activate portal') }}</flux:menu.item>
@@ -35,9 +45,9 @@
                                                     @csrf @method('PATCH')
                                                     <flux:menu.item as="button" type="submit">{{ $consumer->is_active ? __('Deactivate') : __('Activate') }}</flux:menu.item>
                                                 </form>
-                                                </flux:menu>
-                                            </flux:dropdown>
-                                        @endcan
+                                                @endcan
+                                            </flux:menu>
+                                        </flux:dropdown>
                                     </td>
                                 </tr>
                             @empty
@@ -81,6 +91,27 @@
                 @endcan
             </section>
         @endcan
+@endif
+@if ($previewedConsumer)
+    @can('permission', 'consumers.view')
+        <section id="consumer-details" class="space-y-6">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <flux:card><flux:text>{{ __('Contact') }}</flux:text><div class="mt-2 text-sm">{{ $previewedConsumer->phone ?: __('Not recorded') }}<br>{{ $previewedConsumer->email ?: __('Not recorded') }}</div></flux:card>
+                <flux:card><flux:text>{{ __('Service address') }}</flux:text><div class="mt-2 text-sm">{{ $previewedConsumer->address }}</div></flux:card>
+                <flux:card><flux:text>{{ __('Account status') }}</flux:text><div class="mt-2"><flux:badge :color="$previewedConsumer->is_active ? 'green' : 'zinc'">{{ $previewedConsumer->is_active ? __('Active') : __('Inactive') }}</flux:badge></div><flux:text class="mt-2 text-sm">{{ $previewedConsumer->portalUser ? __('Portal active') : __('Portal not activated') }}</flux:text></flux:card>
+            </div>
+            @can('permission', 'connections.view')
+                <section class="space-y-3"><flux:heading size="base">{{ __('Connections') }}</flux:heading><div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700"><table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700"><thead><tr><th class="px-4 py-3">{{ __('Connection') }}</th><th class="px-4 py-3">{{ __('Meter') }}</th><th class="px-4 py-3">{{ __('Installed') }}</th><th class="px-4 py-3">{{ __('Status') }}</th></tr></thead><tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">@forelse ($previewedConsumer->connections as $connection)<tr><td class="px-4 py-3">{{ $connection->number }}</td><td class="px-4 py-3">{{ $connection->meter_number }}</td><td class="px-4 py-3">{{ $connection->installed_at?->format('M d, Y') ?? __('Not recorded') }}</td><td class="px-4 py-3">{{ ucfirst(str_replace('_', ' ', $connection->status ?? 'unknown')) }}</td></tr>@empty<tr><td colspan="4" class="px-4 py-3">{{ __('No connections recorded.') }}</td></tr>@endforelse</tbody></table></div></section>
+            @endcan
+            @if (auth()->user()->can('connections.view') || auth()->user()->can('billing.view') || auth()->user()->can('payments.view'))
+                <section class="space-y-3">
+                    <div class="flex flex-wrap items-end justify-between gap-3"><flux:heading size="base">{{ __('Account activity') }}</flux:heading><form method="GET" class="flex items-end gap-2"><input type="hidden" name="preview_consumer" value="{{ $previewedConsumer->id }}"><flux:input name="period" type="month" :label="__('Month')" :value="request('period')" /><flux:button type="submit">{{ __('Filter') }}</flux:button>@if (request()->filled('period'))<flux:button :href="$consumerDetailUrl" variant="ghost">{{ __('Clear') }}</flux:button>@endif</form></div>
+                    <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700"><table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700"><thead><tr><th class="px-4 py-3">{{ __('Date') }}</th><th class="px-4 py-3">{{ __('Type') }}</th><th class="px-4 py-3">{{ __('Reference') }}</th><th class="px-4 py-3">{{ __('Details') }}</th><th class="px-4 py-3">{{ __('Amount') }}</th><th class="px-4 py-3">{{ __('Status') }}</th><th class="px-4 py-3">{{ __('Receipt') }}</th></tr></thead><tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">@forelse ($consumerActivity as $activity)@php($record = $activity['record'])<tr><td class="px-4 py-3">{{ $activity['date']->format($activity['type'] === 'payment' ? 'M d, Y' : 'M Y') }}</td><td class="px-4 py-3">{{ ucfirst($activity['type']) }}</td>@if ($activity['type'] === 'reading')<td class="px-4 py-3">{{ $record->connection->meter_number }}</td><td class="px-4 py-3">{{ $record->previous_reading }} → {{ $record->current_reading }} · {{ number_format((float) $record->current_reading - (float) $record->previous_reading, 3) }} m³</td><td class="px-4 py-3">—</td><td class="px-4 py-3">—</td><td class="px-4 py-3">—</td>@elseif ($activity['type'] === 'bill')@php($status = $record->paymentStatus())<td class="px-4 py-3">{{ $record->number }}</td><td class="px-4 py-3">₱{{ number_format((float) $record->total, 2) }} · ₱{{ number_format((float) $record->balance(), 2) }} {{ __('remaining') }}</td><td class="px-4 py-3">₱{{ number_format((float) $record->total, 2) }}</td><td class="px-4 py-3"><flux:badge :color="$status === 'Paid' ? 'green' : ($status === 'Overdue' ? 'red' : ($status === 'Void' ? 'zinc' : 'yellow'))">{{ $status }}</flux:badge></td><td class="px-4 py-3">—</td>@else<td class="px-4 py-3">{{ $record->reference }}</td><td class="px-4 py-3">{{ $record->bill->number }} · {{ ucfirst(str_replace('_', ' ', $record->method)) }}</td><td class="px-4 py-3">₱{{ number_format((float) $record->amount, 2) }}</td><td class="px-4 py-3"><flux:badge :color="$record->status === 'verified' ? 'green' : ($record->status === 'rejected' ? 'red' : 'yellow')">{{ ucfirst($record->status) }}</flux:badge></td><td class="px-4 py-3">@if ($record->status === 'verified')<flux:button size="sm" :href="route('payments.print', $record)" data-document-preview>{{ __('View receipt') }}</flux:button>@else—@endif</td>@endif</tr>@empty<tr><td colspan="7" class="px-4 py-8 text-center">{{ __('No account activity recorded.') }}</td></tr>@endforelse</tbody></table></div>
+                </section>
+            @endif
+        </section>
+    @endcan
+@endif
 
 
 </div>

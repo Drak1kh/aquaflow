@@ -49,7 +49,7 @@
         button:hover { background: #e4e4e7; }
         button:focus-visible { outline: 2px solid #27272a; outline-offset: 3px; }
         body.embedded { background: #fff; }
-        .embedded .document { margin: 0 auto; border: 0; }
+        .embedded .document { width: 100%; max-width: none; margin: 0; border: 0; }
         @media (max-width: 600px) {
             .document { margin: 0; padding: 24px 18px; border: 0; }
             .document-header { align-items: flex-start; flex-direction: column; gap: 16px; }

@@ -35,7 +35,7 @@ class OperationsController extends Controller
 {
     public function index(Request $request, BillingService $billing, DashboardTrends $trends): View
     {
-        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'period' => ['nullable', 'date_format:Y-m'], 'sort' => ['nullable', Rule::in(['period_month', 'total', 'balance'])], 'direction' => ['nullable', Rule::in(['asc', 'desc'])], 'bill' => ['nullable', Rule::exists('bills', 'id')->where('water_provider_id', $request->user()->water_provider_id)], 'edit_consumer' => ['nullable', 'integer'], 'portal_consumer' => ['nullable', 'integer'], 'reject_payment' => ['nullable', 'integer']]);
+        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'period' => ['nullable', 'date_format:Y-m'], 'sort' => ['nullable', Rule::in(['period_month', 'total', 'balance'])], 'direction' => ['nullable', Rule::in(['asc', 'desc'])], 'bill' => ['nullable', Rule::exists('bills', 'id')->where('water_provider_id', $request->user()->water_provider_id)], 'edit_consumer' => ['nullable', 'integer'], 'portal_consumer' => ['nullable', 'integer'], 'preview_consumer' => ['nullable', 'integer'], 'reject_payment' => ['nullable', 'integer']]);
         $providerId = $request->user()->water_provider_id;
         $module = $request->route()->defaults['module'] ?? 'dashboard';
         $data = ['provider' => $request->user()->waterProvider];
@@ -72,7 +72,29 @@ class OperationsController extends Controller
         } elseif ($module === 'consumers') {
             $selectedId = $request->input('edit_consumer') ?? $request->input('portal_consumer');
             $selected = $selectedId ? Consumer::with('portalUser')->where('water_provider_id', $providerId)->findOrFail($selectedId) : null;
-            $data += ['consumers' => $consumers->with(['portalUser', 'connections'])->orderBy('name')->paginate(20)->withQueryString(), 'selectedConsumer' => $selected];
+            $previewedConsumer = $request->filled('preview_consumer')
+                ? Consumer::with(['portalUser', 'connections'])->where('water_provider_id', $providerId)->findOrFail($request->input('preview_consumer'))
+                : null;
+            $previewReadings = $previewedConsumer && $request->user()->can('connections.view')
+                ? MeterReading::with('connection')->where('water_provider_id', $providerId)->whereHas('connection', fn ($query) => $query->where('consumer_id', $previewedConsumer->id))->when($request->filled('period'), fn ($query) => $query->whereDate('period_month', $request->input('period').'-01'))->latest('period_month')->latest('id')->get()
+                : collect();
+            $previewBills = $previewedConsumer && $request->user()->can('billing.view')
+                ? Bill::with(['connection', 'allocations'])->where('water_provider_id', $providerId)->where('consumer_id', $previewedConsumer->id)->when($request->filled('period'), fn ($query) => $query->whereDate('period_month', $request->input('period').'-01'))->latest('period_month')->latest('id')->get()
+                : collect();
+            $previewPayments = $previewedConsumer && $request->user()->can('payments.view')
+                ? Payment::with('bill')->where('water_provider_id', $providerId)->where('consumer_id', $previewedConsumer->id)->when($request->filled('period'), fn ($query) => $query->where('paid_at', '>=', $request->input('period').'-01')->where('paid_at', '<', CarbonImmutable::parse($request->input('period').'-01')->addMonth()))->latest('paid_at')->latest('id')->get()
+                : collect();
+            $consumerActivity = $previewReadings->map(fn (MeterReading $reading) => ['type' => 'reading', 'date' => $reading->period_month, 'record' => $reading])
+                ->merge($previewBills->map(fn (Bill $bill) => ['type' => 'bill', 'date' => $bill->period_month, 'record' => $bill]))
+                ->merge($previewPayments->map(fn (Payment $payment) => ['type' => 'payment', 'date' => $payment->paid_at, 'record' => $payment]))
+                ->sortByDesc(fn (array $activity) => $activity['date']->format('Y-m-d').str_pad((string) $activity['record']->id, 10, '0', STR_PAD_LEFT))
+                ->values();
+            $data += [
+                'consumers' => $previewedConsumer ? null : $consumers->with(['portalUser', 'connections'])->orderBy('name')->paginate(20)->withQueryString(),
+                'selectedConsumer' => $selected,
+                'previewedConsumer' => $previewedConsumer,
+                'consumerActivity' => $consumerActivity,
+            ];
         } elseif ($module === 'readings') {
             $providerReadings = MeterReading::where('water_provider_id', $providerId);
             $providerConnections = Connection::where('water_provider_id', $providerId);

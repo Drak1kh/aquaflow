@@ -5,6 +5,8 @@ use App\Models\BillAdjustment;
 use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\MeterReading;
+use App\Models\Payment;
+use App\Models\PaymentAllocation;
 use App\Models\User;
 use App\Models\WaterProvider;
 use Illuminate\Support\Facades\Route;
@@ -119,7 +121,43 @@ test('outstanding balances apply one configured penalty to eligible overdue bill
     expect($bill->fresh()->balance())->toBe('165.00');
     $this->post(route('provider.bills.penalty', $bill))->assertSessionHasNoErrors();
     expect($bill->fresh()->balance())->toBe('165.00');
-    $this->get(route('provider.balances.index'))->assertOk()->assertSee('Penalty ₱15.00');
+    $this->get(route('provider.balances.index'))->assertOk()->assertSee('Penalty')->assertSee('₱15.00');
+});
+
+test('outstanding balances put filters below KPIs and use compact colour-coded bill rows', function () {
+    $provider = WaterProvider::factory()->create();
+    $staff = User::factory()->waterProvider()->create(['water_provider_id' => $provider->id]);
+    $consumer = Consumer::factory()->create(['water_provider_id' => $provider->id]);
+    $connection = Connection::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id]);
+    $partialConnection = Connection::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id]);
+    $unpaidConnection = Connection::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id]);
+    Bill::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'connection_id' => $connection->id, 'due_at' => today()->subDay()]);
+    $partial = Bill::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'connection_id' => $partialConnection->id]);
+    Bill::factory()->create(['water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'connection_id' => $unpaidConnection->id]);
+    $payment = Payment::factory()->create(['bill_id' => $partial->id, 'water_provider_id' => $provider->id, 'consumer_id' => $consumer->id, 'reference' => 'PAYMENT-HISTORY']);
+    PaymentAllocation::factory()->create(['payment_id' => $payment->id, 'bill_id' => $partial->id, 'amount' => '50.00']);
+
+    $content = $this->actingAs($staff)->get(route('provider.balances.index'))->assertOk()
+        ->assertSee('Overdue')->assertSee('Partially Paid')->assertSee('Unpaid')
+        ->assertDontSee('Review payments')->assertDontSee('PAYMENT-HISTORY')->getContent();
+
+    expect(strpos($content, 'Outstanding balance'))->toBeLessThan(strpos($content, 'Consumer name or account'));
+    expect(file_get_contents(resource_path('views/provider/summary.blade.php')))
+        ->toContain('overflow-x-auto w-fit max-w-full p-0')
+        ->toContain('flex min-w-max divide-x divide-zinc-200 dark:divide-zinc-700')
+        ->toContain("__('Status')")
+        ->toContain("__('Penalty')")
+        ->not->toContain('$bill->payments')
+        ->toContain("__('Name')")
+        ->toContain("__('Account')")
+        ->toContain("__('Meter')")
+        ->toContain("__('Status')")
+        ->toContain("__('Due date')")
+        ->toContain("__('Remaining')")
+        ->toContain("__('Penalty')")
+        ->toContain("'Overdue' => 'red'")
+        ->toContain("'Partially Paid' => 'yellow'")
+        ->toContain("'Unpaid' => 'zinc'");
 });
 
 test('consumption reports compare earlier periods even when filtering to one month', function () {
