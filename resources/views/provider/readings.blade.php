@@ -4,10 +4,10 @@
 
         @can('permission', 'connections.view')
             <section data-meter-reading-summary class="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_2.5fr]">
-                <flux:card class="h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Recorded readings') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $recordedReadingCount }}</flux:text></flux:card>
-                <flux:card class="h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Active connections') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $activeConnectionCount }}</flux:text></flux:card>
-                <flux:card class="h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Not Active connections') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $inactiveConnectionCount }}</flux:text></flux:card>
-                <x-dashboard-chart compact class="h-40 min-w-0" :title="__('Water consumption')" :description="__('Total metered usage across your provider’s connections by reading month.')" :data="$consumptionTrend" :series="['consumption' => __('Consumption')]" unit="m3" />
+                <flux:card class="min-h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Recorded readings') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $recordedReadingCount }}</flux:text></flux:card>
+                <flux:card class="min-h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Active connections') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $activeConnectionCount }}</flux:text></flux:card>
+                <flux:card class="min-h-40 flex flex-col justify-center gap-2 text-center"><flux:heading level="2" size="sm">{{ __('Not Active connections') }}</flux:heading><flux:text class="text-3xl font-semibold">{{ $inactiveConnectionCount }}</flux:text></flux:card>
+                <x-dashboard-chart compact class="min-h-40 min-w-0" :title="__('Water consumption')" :description="__('Total metered usage across your provider’s connections by reading month.')" :data="$consumptionTrend" :series="['consumption' => __('Consumption')]" unit="m3" />
             </section>
 
             <section id="connections" class="space-y-4">

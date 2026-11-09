@@ -4,9 +4,9 @@ use App\Models\Bill;
 use App\Models\ClientNotice;
 use App\Models\Connection;
 use App\Models\Payment;
-use App\Models\WaterRate;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Models\WaterRate;
 use App\UserRole;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoDataSeeder;
@@ -19,7 +19,26 @@ test('the local seeder creates accounts and linked demo history for every role w
 
     $this->assertDatabaseCount('users', 15);
     $this->assertDatabaseCount('water_providers', 2);
+    $this->assertDatabaseHas('water_providers', [
+        'code' => 'demo-water',
+        'name' => 'Tagoloan Community Waterworks (Demo)',
+        'address' => 'Barangay Poblacion, Tagoloan, Misamis Oriental, Northern Mindanao (Demo office)',
+    ]);
+    $this->assertDatabaseHas('water_providers', [
+        'code' => 'riverside-demo',
+        'name' => 'Baluarte Community Water Services (Demo)',
+        'address' => 'Barangay Baluarte, Tagoloan, Misamis Oriental, Northern Mindanao (Demo office)',
+    ]);
     $this->assertDatabaseCount('consumers', 12);
+    $this->assertDatabaseHas('consumers', [
+        'account_number' => 'DEMO-001',
+        'name' => 'Maria Lourdes Abellanosa',
+        'address' => 'Purok 1, Barangay Poblacion, Tagoloan, Misamis Oriental, Northern Mindanao (Demo address)',
+    ]);
+    $this->assertDatabaseHas('consumers', [
+        'account_number' => 'DEMO-003',
+        'address' => 'Purok 3, Barangay Casinglot, Tagoloan, Misamis Oriental, Northern Mindanao (Demo address)',
+    ]);
     $this->assertDatabaseCount('connections', 12);
     $this->assertDatabaseCount('meter_readings', 130);
     $this->assertDatabaseCount('bills', 130);
@@ -58,6 +77,12 @@ test('demo bills and payments have consistent balances and provider ownership', 
         ->consumption->toBe('10.000')->total->toBe('187.50');
     expect($bill->balance())->toBe('112.50');
     expect($bill->paymentStatus())->toBe('Partially Paid');
+    expect($bill->due_at->toDateString())->toBe('2026-11-09');
+    $this->assertDatabaseHas('bills', [
+        'consumer_id' => $client->consumer_id,
+        'period_month' => '2026-10-01 00:00:00',
+        'due_at' => '2026-10-20 00:00:00',
+    ]);
     $this->assertDatabaseHas('client_notices', ['user_id' => $client->id, 'consumer_id' => $client->consumer_id, 'event_key' => 'due:'.$bill->id.':2026-11-09']);
     $this->assertDatabaseHas('bills', ['status' => 'overdue', 'late_fee' => '25.00']);
     $this->assertDatabaseHas('connections', ['status' => 'disconnected']);
