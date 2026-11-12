@@ -9,8 +9,10 @@
     }
     $scale = max(1, $maximum);
     $precision = $unit === 'PHP' ? 2 : 3;
-    $plotBottom = $compact ? 108 : 212;
-    $plotHeight = $compact ? 80 : 184;
+    $viewBoxHeight = $compact ? 90 : 260;
+    $plotBottom = $compact ? 64 : 212;
+    $plotHeight = $compact ? 48 : 184;
+    $axisLabelY = $compact ? 84 : 246;
 @endphp
 
 <flux:card {{ $attributes->class(['min-w-0', 'space-y-3' => $compact, 'space-y-5' => ! $compact]) }}>
@@ -33,7 +35,7 @@
 
     @if ($maximum > 0)
         <div class="overflow-x-auto" tabindex="0" role="region" aria-label="{{ $title }}">
-            <svg viewBox="0 0 640 {{ $compact ? 140 : 260 }}" @class(['w-full', 'h-24' => $compact, 'h-auto min-w-[26rem]' => ! $compact]) role="img" aria-label="{{ $title }}">
+            <svg viewBox="0 0 640 {{ $viewBoxHeight }}" @class(['w-full', 'h-24' => $compact, 'h-auto min-w-[26rem]' => ! $compact]) role="img" aria-label="{{ $title }}">
                 <title>{{ $title }} — {{ $compact ? __('Monthly usage values.') : __('Monthly values are available in the data table below.') }}</title>
                 @foreach ([0, 0.5, 1] as $fraction)
                     @php $y = $plotBottom - $fraction * $plotHeight; @endphp
@@ -59,7 +61,7 @@
                 @endforeach
 
                 @foreach ($data as $index => $row)
-                    <text x="{{ 76 + $index * 538 / (count($data) - 1) }}" y="{{ $compact ? 130 : 246 }}" text-anchor="middle" fill="currentColor" class="fill-current text-sm text-zinc-600 dark:text-zinc-300">{{ substr($row['month'], 0, 3) }}</text>
+                    <text x="{{ 76 + $index * 538 / (count($data) - 1) }}" y="{{ $axisLabelY }}" text-anchor="middle" fill="currentColor" class="fill-current text-sm text-zinc-600 dark:text-zinc-300">{{ substr($row['month'], 0, 3) }}</text>
                 @endforeach
             </svg>
         </div>

@@ -1,4 +1,4 @@
-@props(['title' => null])
+@props(['title' => null, 'breadcrumbs' => []])
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
@@ -76,8 +76,7 @@
                 'provider.payments.index' => __('Payment Management'),
                 'provider.balances.index' => __('Outstanding Balances'),
                 'provider.service.index' => __('Disconnection & Reconnection'),
-                'provider.reports.billing' => __('Billing Reports'),
-                'provider.reports.consumption' => __('Water Consumption Reports'),
+                'provider.reports.billing' => __('Reports'),
                 'provider.tickets.index' => __('Support Tickets'),
                 'provider.profile.edit' => __('Profile Settings'),
                 default => __('Dashboard'),
@@ -89,7 +88,16 @@
 
             <flux:breadcrumbs class="hidden min-w-0 md:flex">
                 <flux:breadcrumbs.item :href="route('dashboard')" icon="house" wire:navigate>{{ __('Main') }}</flux:breadcrumbs.item>
-                @if (request()->routeIs('dashboard', 'dashboard.*'))
+                @if ($breadcrumbs)
+                    <flux:breadcrumbs.item :href="route('dashboard')" wire:navigate>{{ app(\App\Actions\PlatformSettings::class)->get('platform_name') }}</flux:breadcrumbs.item>
+                    @foreach ($breadcrumbs as $breadcrumb)
+                        @if ($breadcrumb['href'] ?? null)
+                            <flux:breadcrumbs.item :href="$breadcrumb['href']">{{ $breadcrumb['label'] }}</flux:breadcrumbs.item>
+                        @else
+                            <flux:breadcrumbs.item>{{ $breadcrumb['label'] }}</flux:breadcrumbs.item>
+                        @endif
+                    @endforeach
+                @elseif (request()->routeIs('dashboard', 'dashboard.*'))
                     <flux:breadcrumbs.item>{{ $pageTitle }}</flux:breadcrumbs.item>
                 @else
                     <flux:breadcrumbs.item :href="route('dashboard')" wire:navigate>{{ app(\App\Actions\PlatformSettings::class)->get('platform_name') }}</flux:breadcrumbs.item>

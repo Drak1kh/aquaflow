@@ -2,16 +2,19 @@
 <div class="client-page w-full min-w-0 space-y-6">
 <x-page-header title="My Connection" description="Your provider maintains these official connection and meter records. Use Help & Support to request a correction." />
 @forelse ($connections as $connection)
-<article class="space-y-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
-    <flux:heading level="2" size="lg">Connection {{ $connection->number }}</flux:heading>
+<flux:card class="space-y-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <flux:heading level="2" size="lg">Connection {{ $connection->number }}</flux:heading>
+        <flux:badge :color="$connection->status === 'active' ? 'green' : 'zinc'">{{ ucfirst(str_replace('_', ' ', $connection->status)) }}</flux:badge>
+    </div>
     <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    @foreach (['Meter number' => $connection->meter_number, 'Connection status' => ucfirst(str_replace('_', ' ', $connection->status)), 'Service address' => $consumer->address, 'Installation date' => $connection->installed_at?->format('M d, Y') ?? 'Not recorded', 'Previous reading' => $connection->latestReading?->previous_reading ?? 'Not recorded', 'Current reading' => $connection->latestReading?->current_reading ?? 'Not recorded', 'Latest billing period' => $connection->latestReading?->period_month->format('M Y') ?? 'Not recorded'] as $label => $value)
+    @foreach (['Meter number' => $connection->meter_number, 'Service address' => $consumer->address, 'Installation date' => $connection->installed_at?->format('M d, Y') ?? 'Not recorded', 'Previous reading' => $connection->latestReading?->previous_reading ?? 'Not recorded', 'Current reading' => $connection->latestReading?->current_reading ?? 'Not recorded', 'Latest billing period' => $connection->latestReading?->period_month->format('M Y') ?? 'Not recorded'] as $label => $value)
         <div><dt class="text-sm text-zinc-500 dark:text-zinc-400">{{ $label }}</dt><dd class="mt-1 font-medium">{{ $value }}</dd></div>
     @endforeach
     @if ($connection->latestReading)<div><dt class="text-sm text-zinc-500 dark:text-zinc-400">Latest consumption</dt><dd class="mt-1 font-medium">{{ bcsub($connection->latestReading->current_reading, $connection->latestReading->previous_reading, 3) }} m³</dd></div>@endif
     </dl>
     <flux:link :href="route('portal.section', ['section' => 'connection', 'connection' => $connection->id])">View this meter’s history</flux:link>
-</article>
+</flux:card>
 @empty <flux:text>Your provider has not assigned a water connection yet.</flux:text> @endforelse
 {{ $connections->links() }}
 <section class="space-y-4">

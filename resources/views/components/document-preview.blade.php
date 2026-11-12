@@ -3,6 +3,7 @@
     title: @js(__('Document preview')),
     loading: false,
     ready: false,
+    attachment: false,
     open(event) {
         const link = event.target.closest('a[data-document-preview]');
         if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -15,6 +16,7 @@
             return;
         }
         this.title = @js(__('Document preview'));
+        this.attachment = link.dataset.documentPreview === 'attachment';
         this.loading = true;
         this.ready = false;
         this.url = url.href;
@@ -23,6 +25,10 @@
     loaded() {
         if (!this.url) return;
         this.loading = false;
+        if (this.attachment) {
+            this.ready = true;
+            return;
+        }
         try {
             const document = this.$refs.documentFrame.contentDocument;
             this.ready = Boolean(document?.querySelector('[data-print-document]'));
@@ -30,17 +36,18 @@
         } catch { this.ready = false; }
     },
     print() {
-        if (!this.ready) return;
+        if (!this.ready || this.attachment) return;
         this.$refs.documentFrame.contentWindow.focus();
         this.$refs.documentFrame.contentWindow.print();
     },
-    reset() { this.url = null; this.loading = false; this.ready = false; },
+    reset() { this.url = null; this.loading = false; this.ready = false; this.attachment = false; },
 }" x-on:click.document="open($event)">
     <flux:modal name="document-preview" variant="bare" :closable="false" class="flex h-[90dvh] w-[calc(100vw-2rem)] min-w-0 max-w-6xl flex-col overflow-hidden rounded-xl bg-white p-0 shadow-lg dark:bg-zinc-900" x-on:close="reset()">
         <header class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-5 py-4 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
             <h2 class="min-w-0 flex-1 basis-full break-words text-lg font-semibold sm:basis-0" x-text="title">{{ __('Document preview') }}</h2>
             <div class="flex items-center gap-2">
-                <flux:button icon="printer" x-on:click="print()" x-bind:disabled="!ready">{{ __('Print / save PDF') }}</flux:button>
+                <flux:button x-show="!attachment" class="size-11" icon="printer" x-on:click="print()" x-bind:disabled="!ready" :aria-label="__('Print document')" />
+                <flux:button x-show="!attachment" class="size-11" icon="arrow-down-tray" x-on:click="print()" x-bind:disabled="!ready" :aria-label="__('Save as PDF')" />
                 <flux:modal.close><flux:button icon="x-mark" :aria-label="__('Close document preview')" /></flux:modal.close>
             </div>
         </header>

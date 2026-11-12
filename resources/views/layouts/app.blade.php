@@ -1,5 +1,5 @@
-@props(['title' => null])
-<x-layouts::app.sidebar :title="$title ?? null">
+@props(['title' => null, 'breadcrumbs' => []])
+<x-layouts::app.sidebar :title="$title ?? null" :breadcrumbs="$breadcrumbs">
     <flux:main>
         <x-page-loading :variant="match (true) {
             request()->routeIs('dashboard', 'dashboard.*') => 'dashboard',

@@ -33,11 +33,18 @@
 
         {{ $slot }}
 
-        <div class="flex flex-wrap justify-end gap-2">
-            <flux:modal.close>
-                <flux:button type="button" variant="ghost">{{ __('Cancel') }}</flux:button>
-            </flux:modal.close>
-            <flux:button type="submit" :variant="$variant">{{ $submitLabel }}</flux:button>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            @isset($footer)
+                <div class="min-w-0 flex-1">
+                    {{ $footer }}
+                </div>
+            @endisset
+            <div class="flex flex-wrap justify-end gap-2 sm:ms-auto">
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" :variant="$variant">{{ $submitLabel }}</flux:button>
+            </div>
         </div>
     </form>
 </x-accessible-modal>

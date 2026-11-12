@@ -66,6 +66,7 @@ class ClientNoticeObserver
             'verified' => 'Payment confirmed', 'rejected' => 'Payment rejected', default => 'Payment awaiting verification'
         };
         $body = $payment->reference.' · ₱'.$payment->amount.'. '.($status === 'rejected' ? $payment->remarks : ($status === 'verified' ? 'Your payment has been applied to your bill.' : 'The provider will review this payment before updating the bill balance.'));
-        $this->notices->send($payment->consumer, 'payment:'.$payment->id.':'.$status, $title, $body, route('portal.section', ['section' => 'payments'], false));
+        $url = $status === 'verified' ? route('payments.print', $payment, false) : route('portal.section', ['section' => 'payments'], false);
+        $this->notices->send($payment->consumer, 'payment:'.$payment->id.':'.$status, $title, $body, $url);
     }
 }

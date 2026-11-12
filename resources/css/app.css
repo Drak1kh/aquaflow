@@ -472,12 +472,10 @@ input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
 input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { appearance: none; margin: 0; }
 dialog.aquaflow-modal::backdrop { background: rgb(9 24 44 / 0.56); backdrop-filter: blur(4px); }
 @media (prefers-reduced-motion: reduce) { dialog.aquaflow-modal::backdrop { backdrop-filter: none; } }
-:is(.provider-page, .client-page) a:not([data-flux-button]):not([data-flux-pagination] *):not([data-kpi-card]) {
-    color: var(--color-brand-primary);
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
+body a:not([data-flux-button]):not([data-flux-pagination] *) {
+    color: inherit !important;
+    text-decoration: none !important;
 }
-.dark :is(.provider-page, .client-page) a:not([data-flux-button]):not([data-flux-pagination] *) { color: var(--color-brand-mist); }
 :is(.provider-page, .client-page) a:focus-visible, :is(.provider-page, .client-page) summary:focus-visible {
     outline: 2px solid var(--color-brand-primary);
     outline-offset: 3px;

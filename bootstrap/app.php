@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [EnsureAccountReady::class]);
+        $middleware->trimStrings(except: [fn (Request $request) => $request->isMethod('DELETE') && $request->is('provider/consumers/*')]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

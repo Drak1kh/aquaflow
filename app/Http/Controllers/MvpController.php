@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\AuditLogger;
 use App\Actions\PlatformSettings;
+use App\Actions\ProviderIdentifiers;
 use App\Models\Bill;
 use App\Models\Connection;
 use App\Models\Consumer;
@@ -83,12 +84,32 @@ class MvpController extends Controller
         return back()->with('status', 'Provider settings saved.');
     }
 
-    public function updateConsumer(Request $request, Consumer $consumer, AuditLogger $audit): RedirectResponse
+    public function updateConsumer(Request $request, Consumer $consumer, AuditLogger $audit, ProviderIdentifiers $identifiers): RedirectResponse
     {
         abort_unless($consumer->water_provider_id === $request->user()->water_provider_id, 404);
-        $data = $request->validate(['account_number' => ['sometimes', 'required', 'string', 'max:80', Rule::unique('consumers')->where('water_provider_id', $consumer->water_provider_id)->ignore($consumer->id)], 'name' => ['required', 'string', 'max:255'], 'phone' => ['nullable', 'regex:/^\\d+$/', 'max:50'], 'email' => ['nullable', 'email'], 'address' => ['required', 'string', 'max:2000']]);
-        $consumer->update($data);
-        $audit->record($consumer, 'consumer.updated', $request->user(), after: $data);
+        $providerId = $consumer->water_provider_id;
+        $data = $request->validate([
+            'account_number' => ['sometimes', 'nullable', 'string', 'max:80', Rule::unique('consumers')->where('water_provider_id', $providerId)->ignore($consumer->id)],
+            'name' => ['required', 'string', 'max:255'], 'phone' => ['nullable', 'regex:/^\\d+$/', 'max:50'], 'email' => ['nullable', 'email'], 'address' => ['required', 'string', 'max:2000'],
+            'connection_id' => ['nullable', Rule::exists('connections', 'id')->where('water_provider_id', $providerId)->where('consumer_id', $consumer->id)],
+            'number' => ['nullable', 'string', 'max:80', Rule::unique('connections')->where('water_provider_id', $providerId)->ignore($request->input('connection_id'))],
+            'meter_number' => ['nullable', 'string', 'max:80', Rule::unique('connections')->where('water_provider_id', $providerId)->ignore($request->input('connection_id'))],
+            'installed_at' => ['nullable', 'date'],
+        ]);
+        $connection = isset($data['connection_id']) ? Connection::findOrFail($data['connection_id']) : $consumer->connections()->first();
+        DB::transaction(function () use ($consumer, $data, $connection, $providerId, $request, $audit, $identifiers): void {
+            $saveConnection = $connection || array_key_exists('number', $data) || array_key_exists('meter_number', $data) || filled($data['installed_at'] ?? null);
+            $data = $identifiers->assign($providerId, $data + ($saveConnection && ! $connection ? ['number' => null, 'meter_number' => null] : []));
+            $consumerData = collect($data)->only(['account_number', 'name', 'phone', 'email', 'address'])->all();
+            $consumer->update($consumerData);
+            $audit->record($consumer, 'consumer.updated', $request->user(), after: $consumerData);
+            if ($saveConnection) {
+                $connection ??= new Connection(['water_provider_id' => $providerId, 'consumer_id' => $consumer->id]);
+                $connectionData = collect($data)->only(['number', 'meter_number', 'installed_at'])->all();
+                $connection->fill($connectionData)->save();
+                $audit->record($connection, $connection->wasRecentlyCreated ? 'connection.created' : 'connection.updated', $request->user(), after: $connectionData);
+            }
+        });
 
         return back()->with('status', 'Consumer updated.');
     }
@@ -139,7 +160,11 @@ class MvpController extends Controller
         Gate::authorize('billing.view');
         $this->authorizeDocument($request, $bill->consumer_id, $bill->water_provider_id);
 
-        return view('consumer.document', ['bill' => $bill->load(['consumer', 'waterProvider', 'allocations', 'adjustments']), 'payment' => null]);
+        return view('consumer.document', [
+            'bill' => $bill->load(['consumer', 'waterProvider', 'allocations', 'adjustments']),
+            'payment' => null,
+            'documentTitle' => $bill->status === 'void' ? __('Original bill — void') : __('Original bill — unpaid'),
+        ]);
     }
 
     public function receipt(Request $request, Payment $payment): View
@@ -147,8 +172,13 @@ class MvpController extends Controller
         Gate::authorize('payments.view');
         $this->authorizeDocument($request, $payment->consumer_id, $payment->water_provider_id);
         abort_unless($payment->status === 'verified', 404);
+        $bill = Bill::with(['consumer', 'waterProvider', 'allocations', 'adjustments'])->findOrFail($payment->bill_id);
 
-        return view('consumer.document', ['bill' => Bill::with(['consumer', 'waterProvider', 'allocations', 'adjustments'])->findOrFail($payment->bill_id), 'payment' => $payment]);
+        return view('consumer.document', [
+            'bill' => $bill,
+            'payment' => $payment,
+            'documentTitle' => bccomp($bill->balance(), '0.00', 2) === 0 ? __('Paid receipt') : __('Payment received'),
+        ]);
     }
 
     public function proof(Request $request, Payment $payment): StreamedResponse
@@ -156,7 +186,7 @@ class MvpController extends Controller
         Gate::authorize('payments.view');
         abort_unless($payment->water_provider_id === $request->user()->water_provider_id && $payment->proof_path, 404);
 
-        return Storage::disk('local')->download($payment->proof_path);
+        return Storage::disk('local')->response($payment->proof_path);
     }
 
     private function authorizeDocument(Request $request, int $consumerId, int $providerId): void

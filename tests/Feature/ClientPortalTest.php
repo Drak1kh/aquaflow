@@ -13,6 +13,47 @@ use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
+test('consumer records use Flux cards with status badges and labeled details', function (string $section) {
+    $bill = Bill::factory()->create();
+    $payment = Payment::factory()->create(['bill_id' => $bill->id]);
+    $client = User::factory()->create(['consumer_id' => $bill->consumer_id]);
+    [$heading, $status, $details] = match ($section) {
+        'connection' => ['Connection '.$bill->connection->number, 'Active', [
+            'Meter number' => $bill->connection->meter_number,
+            'Service address' => preg_replace('/\s+/', ' ', $bill->consumer->address),
+            'Installation date' => 'Not recorded',
+            'Previous reading' => '0.000',
+            'Current reading' => '10.000',
+            'Latest billing period' => $bill->period_month->format('M Y'),
+            'Latest consumption' => '10.000 m³',
+        ]],
+        'bills' => [$bill->number, 'Unpaid', [
+            'Consumption' => '10.000 m³',
+            'Total' => '₱150.00',
+            'Due date' => $bill->due_at->format('M d, Y'),
+            'Remaining balance' => '₱150.00',
+        ]],
+        'payments' => [$payment->reference, 'Pending', [
+            'Payment date' => $payment->paid_at->format('M d, Y'),
+            'Payment method' => 'Cash',
+            'Bill' => $bill->number,
+        ]],
+    };
+
+    $response = $this->actingAs($client)->get(route('portal.section', $section))->assertOk();
+    $document = new DOMDocument;
+    @$document->loadHTML('<?xml encoding="utf-8" ?>'.$response->getContent());
+    $elements = new DOMXPath($document);
+    $card = '//*[@data-flux-card][.//h2[contains(., "'.$heading.'")]]';
+
+    expect($elements->query($card))->toHaveCount(1);
+    expect($elements->evaluate('normalize-space('.$card.'//*[@data-flux-badge])'))->toBe($status);
+    expect($elements->query($card.'//dl[contains(@class, "sm:grid-cols-")]'))->toHaveCount(1);
+    foreach ($details as $label => $value) {
+        expect($elements->evaluate('normalize-space('.$card.'//dl/div[dt[normalize-space(.)="'.$label.'"]]/dd)'))->toBe($value);
+    }
+})->with(['connection', 'bills', 'payments']);
+
 test('consumers can read FAQs on a dedicated page instead of the support page', function () {
     $consumer = Consumer::factory()->create();
     $client = User::factory()->create(['consumer_id' => $consumer->id]);
@@ -148,7 +189,7 @@ test('new bills verified payments and service updates create private client noti
     ServiceEvent::factory()->create(['connection_id' => $connection->id, 'action' => 'restore', 'reason' => 'Water service restored']);
 
     $this->assertDatabaseHas('client_notices', ['user_id' => $client->id, 'consumer_id' => $client->consumer_id, 'title' => 'New water bill']);
-    $this->assertDatabaseHas('client_notices', ['user_id' => $client->id, 'title' => 'Payment confirmed']);
+    $this->assertDatabaseHas('client_notices', ['user_id' => $client->id, 'title' => 'Payment confirmed', 'url' => route('payments.print', $payment, false)]);
     $this->assertDatabaseHas('client_notices', ['user_id' => $client->id, 'title' => 'Service restored']);
     $this->actingAs($client)->get(route('portal.section', 'notifications'))->assertOk()->assertSee('New water bill')->assertSee('Payment confirmed')->assertSee('Water service restored');
 });

@@ -30,6 +30,12 @@
         .document-facts > div { display: flex; justify-content: space-between; gap: 20px; padding: 4px 0; }
         dt { color: #52525b; }
         dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+        .document-due-date, .document-status { font-weight: 700; }
+        .document-status-paid { color: #15803d; }
+        .document-status-partial { color: #a16207; }
+        .document-status-unpaid { color: #a16207; }
+        .document-status-overdue { color: #b91c1c; }
+        .document-status-void { color: #52525b; }
         .document-table-wrap { overflow-x: auto; }
         .document-report { min-width: 700px; }
         .document-scroll-hint { display: none; }

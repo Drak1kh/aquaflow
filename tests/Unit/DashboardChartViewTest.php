@@ -32,7 +32,9 @@ test('compact charts omit the monthly values disclosure', function () {
     $view->assertSee('Water consumption')->assertDontSee('View monthly values')->assertDontSee('Monthly values are available in the data table below.');
     $document = new DOMDocument;
     @$document->loadHTML((string) $view);
-    expect((new DOMXPath($document))->query('//table'))->toHaveCount(0);
+    $elements = new DOMXPath($document);
+    expect($elements->query('//table'))->toHaveCount(0);
+    expect($elements->query('//svg[@role="img"]')->item(0)->getAttribute('viewbox'))->toBe('0 0 640 90');
 });
 
 test('empty charts explain missing activity and retain zero values in the table', function () {

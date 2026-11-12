@@ -14,15 +14,22 @@
 <flux:button type="submit">Filter payments</flux:button>
 </form>
 @forelse($payments as $payment)
-<article class="space-y-3 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
-    <flux:heading level="2">{{ $payment->reference }} · ₱{{ $payment->amount }}</flux:heading>
-    <flux:text>{{ ucfirst($payment->status) }} · {{ $payment->paid_at->format('M d, Y') }} · {{ ucfirst(str_replace('_', ' ', $payment->method)) }} · Bill {{ $payment->bill->number }}</flux:text>
+<flux:card class="space-y-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <flux:heading level="2" size="lg">{{ $payment->reference }} · <span class="tabular-nums">₱{{ $payment->amount }}</span></flux:heading>
+        <flux:badge :color="match ($payment->status) { 'verified' => 'green', 'rejected' => 'red', default => 'zinc' }">{{ ucfirst($payment->status) }}</flux:badge>
+    </div>
+    <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div><dt class="text-sm text-zinc-500 dark:text-zinc-400">Payment date</dt><dd class="mt-1 font-medium">{{ $payment->paid_at->format('M d, Y') }}</dd></div>
+        <div><dt class="text-sm text-zinc-500 dark:text-zinc-400">Payment method</dt><dd class="mt-1 font-medium">{{ ucfirst(str_replace('_', ' ', $payment->method)) }}</dd></div>
+        <div><dt class="text-sm text-zinc-500 dark:text-zinc-400">Bill</dt><dd class="mt-1 font-medium">{{ $payment->bill->number }}</dd></div>
+    </dl>
     @if($payment->status === 'rejected')<flux:text>Reason: {{ $payment->remarks }}</flux:text>@endif
     <div class="flex flex-wrap gap-3">
         @if($payment->proof_path)<flux:button :href="route('portal.payments.proof', $payment)">View submitted proof</flux:button>@endif
-        @if($payment->status === 'verified')<flux:button :href="route('payments.print', $payment)" data-document-preview>Print receipt</flux:button>@endif
+        @if($payment->status === 'verified')<flux:button :href="route('payments.print', $payment)" data-document-preview>View payment receipt</flux:button>@endif
     </div>
-</article>
+</flux:card>
 @empty <flux:text>No payments match this filter.</flux:text> @endforelse
 {{ $payments->links() }}
 @if($bills->isNotEmpty())

@@ -5,8 +5,7 @@
                         'provider.payments.index' => ['Payment Management', 'credit-card'],
                         'provider.balances.index' => ['Outstanding Balances', 'banknotes'],
                         'provider.service.index' => ['Disconnection & Reconnection', 'arrows-right-left'],
-                        'provider.reports.billing' => ['Billing Reports', 'document-text'],
-                        'provider.reports.consumption' => ['Water Consumption Reports', 'chart-pie'],
+                        'provider.reports.billing' => ['Reports', 'document-text'],
                     ] as $name => [$label, $icon])
                         @can('permission', match ($name) {
                             'provider.consumers.index' => 'consumers.view', 'provider.readings.index', 'provider.service.index' => 'connections.view', 'provider.billing.index' => 'billing.view', 'provider.payments.index', 'provider.balances.index' => 'payments.view', default => 'reports.view',

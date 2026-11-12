@@ -47,7 +47,7 @@ test('the consumer dashboard distinguishes current bills latest usage and oldest
         ->assertSee('No bill generated for this month.')->assertSee('7.000 m³')->assertSee('Oct 25, 2026')->assertSee('Overdue');
 });
 
-test('the first reading accepts an opening value and later readings use saved history', function () {
+test('meter readings derive their baseline from saved history instead of request input', function () {
     $connection = Connection::factory()->create();
     $staff = User::factory()->waterProvider()->create(['water_provider_id' => $connection->water_provider_id]);
 
@@ -55,8 +55,10 @@ test('the first reading accepts an opening value and later readings use saved hi
     $this->post(route('provider.readings.store'), ['connection_id' => $connection->id, 'period_month' => '2026-10', 'previous_reading' => '0', 'current_reading' => '115.000'])->assertSessionHasNoErrors();
 
     $readings = MeterReading::orderBy('period_month')->get();
-    expect($readings[0]->previous_reading)->toBe('100.000');
+    expect($readings[0]->previous_reading)->toBe('0.000');
+    expect($readings[0]->current_reading)->toBe('110.000');
     expect($readings[1]->previous_reading)->toBe('110.000');
+    expect($readings[1]->current_reading)->toBe('115.000');
     $this->post(route('provider.readings.store'), ['connection_id' => $connection->id, 'period_month' => '2026-11', 'current_reading' => '114.000'])->assertSessionHasErrors('current_reading');
     $this->assertDatabaseCount('meter_readings', 2);
 });

@@ -105,14 +105,18 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
         Route::post('bills/{bill}/penalty', [ModuleController::class, 'penalty'])->middleware('can:billing.manage')->name('bills.penalty');
         Route::post('bills/{bill}/adjustments', [ModuleController::class, 'adjustment'])->middleware('can:access-super-admin')->name('adjustments.store');
         Route::get('reports/billing', [ModuleController::class, 'billingReport'])->middleware('can:reports.view')->name('reports.billing');
+        Route::get('reports/billing/csv', [ModuleController::class, 'billingReportCsv'])->middleware('can:reports.view')->name('reports.billing.csv');
+        Route::get('reports/billing/print', [ModuleController::class, 'billingReportPrint'])->middleware('can:reports.view')->name('reports.billing.print');
         Route::get('reports/consumption', [ModuleController::class, 'consumptionReport'])->middleware('can:reports.view')->name('reports.consumption');
         Route::get('tickets', [ModuleController::class, 'tickets'])->middleware('can:tickets.view')->name('tickets.index');
         Route::post('tickets/{ticket}/escalate', [OperationsController::class, 'escalate'])->middleware('can:tickets.respond')->name('tickets.escalate');
         Route::post('tickets/{ticket}/reply', [OperationsController::class, 'replyTicket'])->middleware('can:tickets.respond')->name('tickets.reply');
         Route::get('attachments/{message}', [OperationsController::class, 'attachment'])->middleware('can:tickets.view')->name('tickets.attachment');
         Route::post('consumers', [OperationsController::class, 'consumer'])->middleware('can:consumers.manage')->name('consumers.store');
+        Route::delete('consumers/{consumer}', [OperationsController::class, 'deleteConsumer'])->middleware('can:consumers.manage')->name('consumers.destroy');
         Route::patch('consumers/{consumer}/status', [OperationsController::class, 'consumerStatus'])->middleware('can:consumers.manage')->name('consumers.status');
         Route::post('consumers/{consumer}/portal', [OperationsController::class, 'activatePortal'])->middleware('can:consumers.manage')->name('consumers.portal');
+        Route::post('consumers/{consumer}/password-reset', [OperationsController::class, 'resetConsumerPassword'])->middleware('can:consumers.manage')->name('consumers.password-reset');
         Route::post('connections', [OperationsController::class, 'connection'])->middleware('can:connections.manage')->name('connections.store');
         Route::post('readings', [OperationsController::class, 'reading'])->middleware('can:connections.manage')->name('readings.store');
         Route::post('rates', [OperationsController::class, 'rate'])->middleware('can:billing.manage')->name('rates.store');

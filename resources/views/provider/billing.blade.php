@@ -6,7 +6,56 @@
             @php($currentRate = $rates->first())
             <section class="grid gap-4 sm:grid-cols-2">
                 <flux:card><flux:text>{{ __('Current water rate') }}</flux:text>@if ($currentRate)<flux:heading level="2" size="lg" class="mt-2 tabular-nums">₱{{ number_format((float) $currentRate->unit_rate, 2) }} / m³</flux:heading><flux:text class="mt-1 text-sm">{{ __('Base charge: ₱:amount', ['amount' => number_format((float) $currentRate->base_charge, 2)]) }}</flux:text>@else<flux:heading level="2" size="lg" class="mt-2">{{ __('Not set') }}</flux:heading><flux:text class="mt-1 text-sm">{{ __('Set a rate before billing.') }}</flux:text>@endif</flux:card>
-                <flux:card><flux:text>{{ __('Six-month rate history') }}</flux:text>@php($maximumRate = max(1, (float) $rateHistory->max('unit_rate')))<div class="mt-3" aria-label="{{ __('Unit-rate history') }}">@if ($rateHistory->isEmpty())<flux:text class="text-sm">{{ __('No rate records yet.') }}</flux:text>@else<div class="flex h-16 items-end gap-2 border-b border-zinc-200 dark:border-zinc-700">@foreach ($rateHistory as $rate)<flux:tooltip :content="$rate->effective_from->format('F Y').' — ₱'.number_format((float) $rate->unit_rate, 2).' / m³'" position="top"><div tabindex="0" role="img" aria-label="{{ $rate->effective_from->format('F Y') }} — ₱{{ number_format((float) $rate->unit_rate, 2) }} / m³" class="min-w-0 flex-1 rounded-t-sm bg-brand-primary dark:bg-brand-aqua" style="height: {{ max(8, ((float) $rate->unit_rate / $maximumRate) * 100) }}%"></div></flux:tooltip>@endforeach</div><div class="mt-1 flex gap-2">@foreach ($rateHistory as $rate)<span class="min-w-0 flex-1 text-center text-xs text-zinc-500 dark:text-zinc-400">{{ $rate->effective_from->format('M') }}</span>@endforeach</div>@endif</div></flux:card>
+                <flux:card>
+                    <figure aria-label="{{ __('Unit-rate history') }}" class="@container">
+                        <figcaption class="flex flex-wrap items-baseline justify-between gap-x-2">
+                            <flux:text>{{ __('Six-month rate history') }}</flux:text>
+                            <flux:text class="text-xs">{{ __('Unit rate (₱ / m³)') }}</flux:text>
+                        </figcaption>
+                        @if ($rateHistory->isEmpty())
+                            <flux:text class="mt-3 text-sm">{{ __('No rate records yet.') }}</flux:text>
+                        @else
+                            @php($maximumRate = max(1, (float) $rateHistory->max('unit_rate')))
+                            <div class="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+                                <div role="group" aria-label="{{ __('Unit rate scale') }}" class="relative h-16 text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
+                                    <div aria-hidden="true" class="invisible">₱{{ number_format($maximumRate, 2) }}</div>
+                                    @foreach ([4, 3, 2, 1, 0] as $tick)
+                                        <span class="absolute right-0 -translate-y-1/2 whitespace-nowrap" style="top: {{ (4 - $tick) * 25 }}%">₱{{ number_format($maximumRate * $tick / 4, 2) }}</span>
+                                    @endforeach
+                                </div>
+                                <div class="relative h-16 border-b border-l border-zinc-300 dark:border-zinc-600">
+                                    <div aria-hidden="true" class="absolute inset-0">
+                                        @foreach ([0, 25, 50, 75] as $position)
+                                            <div class="absolute inset-x-0 border-t border-zinc-200 dark:border-zinc-700" style="top: {{ $position }}%"></div>
+                                        @endforeach
+                                    </div>
+                                    <div role="list" aria-label="{{ __('Unit rates by effective month') }}" class="relative flex h-full items-end justify-around gap-2 px-2">
+                                        @foreach ($rateHistory as $rate)
+                                            <div role="listitem" aria-label="{{ $rate->effective_from->format('F Y') }} — ₱{{ number_format((float) $rate->unit_rate, 2) }} / m³" class="relative flex h-full min-w-0 flex-1 items-end">
+                                                <div aria-hidden="true" class="relative w-full rounded-t-sm bg-brand-primary dark:bg-brand-aqua" style="height: {{ ((float) $rate->unit_rate / $maximumRate) * 100 }}%">
+                                                    <span class="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 whitespace-nowrap text-xs font-medium tabular-nums text-zinc-800 @sm:block dark:text-zinc-100">₱{{ number_format((float) $rate->unit_rate, 2) }}</span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div aria-hidden="true" class="col-start-2 hidden justify-around gap-2 px-2 text-center text-xs text-zinc-600 @sm:flex dark:text-zinc-400">
+                                    @foreach ($rateHistory as $rate)
+                                        <span class="min-w-0 flex-1">{{ $rate->effective_from->format('M') }}<span class="block">{{ $rate->effective_from->format('Y') }}</span></span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <dl aria-label="{{ __('Monthly unit rates') }}" class="mt-2 grid grid-cols-3 gap-x-3 gap-y-1 text-xs @sm:hidden">
+                                @foreach ($rateHistory as $rate)
+                                    <div class="min-w-0">
+                                        <dt class="text-zinc-600 dark:text-zinc-400">{{ $rate->effective_from->format('M Y') }}</dt>
+                                        <dd class="break-words font-medium tabular-nums text-zinc-800 dark:text-zinc-100">₱{{ number_format((float) $rate->unit_rate, 2) }}</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        @endif
+                    </figure>
+                </flux:card>
             </section>
             <section id="billing" class="space-y-4">
                 <div class="flex flex-wrap items-end gap-2">
@@ -22,15 +71,15 @@
                 </div>
                 <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
                     <table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700">
-                        <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">{{ __('Bill') }}</th><th scope="col" class="px-4 py-3">{{ __('Consumer') }}</th>@foreach (['period_month' => __('Month'), 'total' => __('Total'), 'balance' => __('Balance')] as $column => $label)@php($isCurrentSort = $sort === $column)@php($nextDirection = $isCurrentSort && $direction === 'desc' ? 'asc' : 'desc')<th scope="col" aria-sort="{{ $isCurrentSort ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}" class="px-4 py-3 {{ $column === 'period_month' ? '' : 'text-right' }}"><div class="flex items-center gap-1 {{ $column === 'period_month' ? '' : 'justify-end' }}"><span>{{ $label }}</span><a href="{{ route('provider.billing.index', array_merge(request()->except('page'), ['sort' => $column, 'direction' => $nextDirection])) }}" class="inline-flex size-6 items-center justify-center rounded hover:bg-zinc-200/60 dark:hover:bg-white/10 {{ $isCurrentSort ? 'text-brand-primary dark:text-brand-aqua' : '' }}" aria-label="Sort {{ $label }} {{ $nextDirection === 'asc' ? 'ascending' : 'descending' }}"><flux:icon.chevrons-up-down class="size-4! [stroke-width:3]" /></a></div></th>@endforeach</tr></thead>
+                        <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">{{ __('Bill receipt') }}</th><th scope="col" class="px-4 py-3">{{ __('Consumer') }}</th>@foreach (['period_month' => __('Month'), 'total' => __('Total'), 'balance' => __('Balance')] as $column => $label)@php($isCurrentSort = $sort === $column)@php($nextDirection = $isCurrentSort && $direction === 'desc' ? 'asc' : 'desc')<th scope="col" aria-sort="{{ $isCurrentSort ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}" class="px-4 py-3 {{ $column === 'period_month' ? '' : 'text-right' }}"><div class="flex items-center gap-1 {{ $column === 'period_month' ? '' : 'justify-end' }}"><span>{{ $label }}</span><a href="{{ route('provider.billing.index', array_merge(request()->except('page'), ['sort' => $column, 'direction' => $nextDirection])) }}" class="inline-flex size-6 items-center justify-center rounded hover:bg-zinc-200/60 dark:hover:bg-white/10 {{ $isCurrentSort ? 'text-brand-primary dark:text-brand-aqua' : '' }}" aria-label="Sort {{ $label }} {{ $nextDirection === 'asc' ? 'ascending' : 'descending' }}"><flux:icon.chevrons-up-down class="size-4! [stroke-width:3]" /></a></div></th>@endforeach<th scope="col" class="px-4 py-3">{{ __('Status') }}</th></tr></thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @if ($bills->isEmpty())
-                                <tr><td colspan="5" class="px-4 py-8 text-center">{{ __('No bills generated yet.') }}</td></tr>
+                                <tr><td colspan="6" class="px-4 py-8 text-center">{{ __('No bills generated yet.') }}</td></tr>
                             @else
                                 @foreach ($sort === 'period_month' ? $bills->groupBy(fn ($bill) => $bill->period_month->format('Y-m')) : [null => $bills] as $month => $monthBills)
-                                    @if ($month !== null)<tr class="bg-brand-surface dark:bg-zinc-800"><th colspan="5" scope="colgroup" class="px-4 py-2 text-left text-sm font-semibold text-brand-ink dark:text-white">{{ $monthBills->first()->period_month->format('F Y') }}</th></tr>@endif
+                                    @if ($month !== null)<tr class="bg-brand-surface dark:bg-zinc-800"><th colspan="6" scope="colgroup" class="px-4 py-2 text-left text-sm font-semibold text-brand-ink dark:text-white">{{ $monthBills->first()->period_month->format('F Y') }}</th></tr>@endif
                                     @foreach ($monthBills as $bill)
-                                        <tr><td class="px-4 py-3"><a href="{{ route('bills.print', $bill) }}" data-document-preview>{{ $bill->number }} · {{ $bill->paymentStatus() }}</a></td><td class="px-4 py-3">{{ $bill->consumer->name }}</td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">{{ $bill->period_month->format('M Y') }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->total, 2) }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->balance(), 2) }}</td></tr>
+                                        @php($status = $bill->paymentStatus())@php($statusColor = match ($status) { 'Paid' => 'green', 'Partially Paid', 'Unpaid' => 'yellow', 'Overdue' => 'red', default => 'zinc' })<tr><td class="px-4 py-3"><a href="{{ route('bills.print', $bill) }}" data-document-preview>{{ $bill->number }}</a></td><td class="px-4 py-3">{{ $bill->consumer->name }}</td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">{{ $bill->period_month->format('M Y') }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->total, 2) }}</td><td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $bill->balance(), 2) }}</td><td class="px-4 py-3"><flux:badge :color="$statusColor">{{ $status }}</flux:badge></td></tr>
                                     @endforeach
                                 @endforeach
                             @endif
@@ -63,8 +112,10 @@
                                     <flux:error name="due_at" />
                                 </flux:field>
                             </div>
-                            <flux:text class="text-sm">{{ __('Leave connection blank to generate bills for all eligible connections for the selected month.') }}</flux:text>
                         </div>
+                        <x-slot:footer>
+                            <flux:text class="text-sm">{{ __('No connection selected? Bills will be generated for all eligible unbilled connections.') }}</flux:text>
+                        </x-slot:footer>
                     </x-form-modal>
                 @endcan
             </section>

@@ -11,43 +11,64 @@
     <flux:card><flux:text>Disconnected</flux:text><flux:heading class="tabular-nums" level="2">{{ $serviceStatusCounts['disconnected'] }}</flux:heading></flux:card>
     <flux:card><flux:text>Pending reconnection</flux:text><flux:heading class="tabular-nums" level="2">{{ $serviceStatusCounts['pending_reconnection'] }}</flux:heading></flux:card>
 </div>
-<flux:card><flux:heading level="2">Service lifecycle</flux:heading><flux:text>Notice an overdue account, disconnect if needed, clear the entire account balance, request reconnection, then restore service.</flux:text></flux:card>
+<flux:card><flux:heading level="2">Service lifecycle</flux:heading><flux:text>Disconnect accounts with two outstanding billing months. Reconnect when the entire account balance is cleared.</flux:text></flux:card>
 <form method="GET" class="flex flex-col gap-3 sm:flex-row sm:items-end"><flux:input placeholder="Search by consumer name or account number" name="search" label="Consumer or account" :value="request('search')" /><flux:button type="submit">Search</flux:button></form>
-@forelse ($connections as $connection)
-    <flux:card class="space-y-4">
-        @php
-            $balance = ($bills->get($connection->consumer_id) ?? collect())->reduce(fn ($sum, $bill) => bcadd($sum, $bill->balance(), 2), '0.00');
-            $action = $serviceOptions[$connection->id][0] ?? null;
-            $actionLabel = $action ? ['notice' => 'Record disconnection notice', 'disconnect' => 'Record disconnection', 'request_reconnection' => 'Request reconnection', 'restore' => 'Complete service restoration'][$action] : null;
-        @endphp
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div><flux:heading level="2">{{ $connection->consumer->name }}</flux:heading><flux:text>Account {{ $connection->consumer->account_number }} · Connection {{ $connection->number }} · Meter {{ $connection->meter_number }}</flux:text></div>
-            <flux:badge>{{ ucfirst(str_replace('_', ' ', $connection->status)) }}</flux:badge>
-        </div>
-        <div class="grid gap-3 text-sm sm:grid-cols-2">
-            <div><flux:text>Account-wide balance</flux:text><flux:text class="tabular-nums">₱{{ $balance }}</flux:text></div>
-            <div><flux:text>Latest event</flux:text><flux:text>{{ $connection->latestServiceEvent ? ucfirst(str_replace('_', ' ', $connection->latestServiceEvent->action)).' · '.$connection->latestServiceEvent->created_at->format('M d, Y') : 'No service event recorded' }}</flux:text></div>
-        </div>
-        <a href="{{ route('provider.balances.index', ['search' => $connection->consumer->account_number]) }}" class="text-sm text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-brand-aqua">View account bills</a>
-        @if ($serviceOptions[$connection->id])
-        <form method="POST" action="{{ route('provider.service.store', $connection) }}" class="space-y-3">
-            @csrf
-            <input type="hidden" name="_form" value="service-{{ $connection->id }}">
-            <input type="hidden" name="action" value="{{ $action }}">
-            <flux:text>Next step: {{ $actionLabel }}</flux:text>
-            <flux:textarea placeholder="Enter the notice, request, or restoration details" name="reason" label="Reason / notice details" rows="2" required>{{ old('_form') === 'service-'.$connection->id ? old('reason') : '' }}</flux:textarea>
-            <flux:button type="submit">{{ $actionLabel }}</flux:button>
-        </form>
-        @else
-            <flux:text>{{ $connection->status === 'active' ? 'No overdue balance: disconnection actions are unavailable.' : 'Clear all outstanding bills on this consumer account before requesting or completing reconnection.' }}</flux:text>
-        @endif
-    </flux:card>
-@empty <flux:text>No connections found.</flux:text> @endforelse
+
+<div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+    <table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700">
+        <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">Consumer</th><th scope="col" class="px-4 py-3">Account</th><th scope="col" class="px-4 py-3">Connection</th><th scope="col" class="px-4 py-3">Meter</th><th scope="col" class="px-4 py-3">Status</th><th scope="col" class="px-4 py-3 text-right">Account-wide balance</th><th scope="col" class="px-4 py-3">Latest event</th><th scope="col" class="px-4 py-3">Next step</th><th scope="col" class="px-4 py-3">Action</th></tr></thead>
+        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+            @forelse ($connections as $connection)
+                @php
+                    $balance = ($bills->get($connection->consumer_id) ?? collect())->reduce(fn ($sum, $bill) => bcadd($sum, $bill->balance(), 2), '0.00');
+                    $action = $serviceOptions[$connection->id][0] ?? null;
+                    $actionLabel = $action ? ['disconnect' => 'Disconnection Needed', 'reconnect' => 'Reconnection Needed'][$action] : null;
+                @endphp
+                <tr>
+                    <td class="px-4 py-3 font-medium">{{ $connection->consumer->name }}</td>
+                    <td class="px-4 py-3">{{ $connection->consumer->account_number }}</td>
+                    <td class="px-4 py-3">{{ $connection->number }}</td>
+                    <td class="px-4 py-3">{{ $connection->meter_number }}</td>
+                    <td class="px-4 py-3"><flux:badge :color="$connection->status === 'active' ? 'green' : 'red'">{{ ucfirst(str_replace('_', ' ', $connection->status)) }}</flux:badge></td>
+                    <td class="px-4 py-3 text-right tabular-nums">&#8369;{{ $balance }}</td>
+                    <td class="px-4 py-3">{{ $connection->latestServiceEvent ? ucfirst(str_replace('_', ' ', $connection->latestServiceEvent->action)).' · '.$connection->latestServiceEvent->created_at->format('M d, Y') : 'No service event recorded' }}</td>
+                    @if ($action)
+                        <td class="px-4 py-3">{{ $actionLabel }}</td>
+                    @else
+                        <td class="px-4 py-3">{{ $connection->status === 'active' ? 'Two outstanding billing months are required before disconnection.' : 'Clear all outstanding bills on this consumer account before reconnecting.' }}</td>
+                    @endif
+                    <td class="px-4 py-3"><flux:dropdown position="bottom" align="end"><flux:button class="size-11" icon="ellipsis-vertical" variant="ghost" aria-label="{{ __('Service actions') }}" /><flux:menu><flux:menu.item :href="route('provider.balances.index', ['search' => $connection->consumer->account_number])">{{ __('View bills') }}</flux:menu.item>@if ($action === 'disconnect')<flux:modal.trigger :name="'disconnect-'.$connection->id"><flux:menu.item>{{ __('Disconnect') }}</flux:menu.item></flux:modal.trigger>@elseif ($action === 'reconnect')<form method="POST" action="{{ route('provider.service.store', $connection) }}">@csrf<input type="hidden" name="action" value="reconnect"><flux:menu.item as="button" type="submit">{{ __('Reconnect') }}</flux:menu.item></form>@endif</flux:menu></flux:dropdown></td>
+                </tr>
+            @empty
+                <tr><td colspan="9" class="px-4 py-8 text-center">No connections found.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+@foreach ($connections as $connection)
+    @if (($serviceOptions[$connection->id][0] ?? null) === 'disconnect')
+        <x-form-modal :name="'disconnect-'.$connection->id" :title="__('Disconnect service')" :description="$connection->consumer->name.' · '.$connection->number" :action="route('provider.service.store', $connection)" :submit-label="__('Disconnect')" variant="danger">
+            <input type="hidden" name="action" value="disconnect">
+            <flux:textarea name="reason" :label="__('Disconnection notice reason')" required>{{ old('_form') === 'disconnect-'.$connection->id ? old('reason') : '' }}</flux:textarea>
+        </x-form-modal>
+    @endif
+@endforeach
 {{ $connections->links() }}
+
 <flux:heading level="2" size="lg">Service history</flux:heading>
-@forelse ($events as $event)
-    <flux:card><flux:heading level="2">{{ $event->connection->consumer->name }} · {{ ucfirst(str_replace('_', ' ', $event->action)) }}</flux:heading><flux:text>{{ $event->connection->number }} · {{ $event->created_at->format('M d, Y H:i') }}</flux:text><flux:text>{{ $event->reason }}</flux:text></flux:card>
-@empty <flux:text>No service events recorded.</flux:text> @endforelse
+<div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+    <table class="min-w-full divide-y divide-zinc-200 text-left text-sm dark:divide-zinc-700">
+        <thead class="bg-brand-surface text-brand-ink dark:bg-zinc-800 dark:text-white"><tr><th scope="col" class="px-4 py-3">Consumer</th><th scope="col" class="px-4 py-3">Connection</th><th scope="col" class="px-4 py-3">Action</th><th scope="col" class="px-4 py-3">Recorded</th><th scope="col" class="px-4 py-3">Reason</th></tr></thead>
+        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+            @forelse ($events as $event)
+                <tr><td class="px-4 py-3 font-medium">{{ $event->connection->consumer->name }}</td><td class="px-4 py-3">{{ $event->connection->number }}</td><td class="px-4 py-3">{{ ucfirst(str_replace('_', ' ', $event->action)) }}</td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">{{ $event->created_at->format('M d, Y H:i') }}</td><td class="px-4 py-3">{{ $event->reason }}</td></tr>
+            @empty
+                <tr><td colspan="5" class="px-4 py-8 text-center">No service events recorded.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
 {{ $events->withQueryString()->links() }}
+
 </div>
 </x-layouts::app>

@@ -53,6 +53,6 @@ php artisan test --compact            # Run the test suite
 npm run build                         # Rebuild production assets
 ```
 
-To add the optional local demo account, run `php artisan db:seed --no-interaction`. The current seeder creates `test@example.com` with the password `password`; use that account only for local development.
+To add local development credentials, run `php artisan db:seed --no-interaction`. This creates only `admin@example.com`, `provider@example.com`, and `test@example.com`, each with the password `password`.
 
 If the page reports a missing Vite manifest, run `npm run build` or start `composer dev`. If SQLite fails to connect, confirm that `database/database.sqlite` exists and that PHP has `pdo_sqlite` enabled.

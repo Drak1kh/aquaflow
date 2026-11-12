@@ -11,6 +11,7 @@ use App\Models\Connection;
 use App\Models\MeterReading;
 use App\Models\ServiceEvent;
 use App\Models\SupportTicket;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ModuleController extends Controller
 {
@@ -44,7 +46,7 @@ class ModuleController extends Controller
 
         $serviceOptions = [];
         foreach ($connections as $connection) {
-            $serviceOptions[$connection->id] = $this->eligibleServiceActions($connection, $bills->get($connection->consumer_id, collect()), $connection->latestServiceEvent);
+            $serviceOptions[$connection->id] = $this->eligibleServiceActions($connection, $bills->get($connection->consumer_id, collect()));
         }
 
         return view('provider.service', compact('connections', 'bills', 'events', 'serviceOptions', 'serviceStatusCounts'));
@@ -53,21 +55,31 @@ class ModuleController extends Controller
     public function serviceAction(Request $request, Connection $connection, AuditLogger $audit): RedirectResponse
     {
         abort_unless($connection->water_provider_id === $request->user()->water_provider_id, 404);
-        $data = $request->validate(['action' => ['required', Rule::in(['notice', 'disconnect', 'request_reconnection', 'restore'])], 'reason' => ['required', 'string', 'max:2000']]);
+        $data = $request->validate(['action' => ['required', Rule::in(['disconnect', 'reconnect'])], 'reason' => ['nullable', 'string', 'max:2000', 'required_if:action,disconnect']]);
         DB::transaction(function () use ($connection, $data, $request, $audit): void {
             $connection = Connection::whereKey($connection->id)->lockForUpdate()->firstOrFail();
             $bills = Bill::with('allocations')->where('consumer_id', $connection->consumer_id)->where('status', '!=', 'void')->orderBy('id')->lockForUpdate()->get();
-            $last = ServiceEvent::where('connection_id', $connection->id)->latest('id')->first();
-            $valid = in_array($data['action'], $this->eligibleServiceActions($connection, $bills, $last), true);
+            $valid = in_array($data['action'], $this->eligibleServiceActions($connection, $bills), true);
             if (! $valid) {
-                throw ValidationException::withMessages(['action' => 'This service action is not eligible. Disconnection requires an overdue bill and notice; reconnection requires a cleared balance and request.']);
+                throw ValidationException::withMessages(['action' => 'This service action is not eligible. Disconnection requires two outstanding billing months; reconnection requires a cleared balance.']);
             }
-            $connection->status = match ($data['action']) {
-                'notice' => 'active', 'disconnect' => 'disconnected', 'request_reconnection' => 'pending_reconnection', 'restore' => 'active',
-            };
+            if ($data['action'] === 'disconnect') {
+                $notice = ServiceEvent::create(['connection_id' => $connection->id, 'actor_id' => $request->user()->id, 'action' => 'notice', 'reason' => $data['reason']]);
+                $audit->record($notice, 'service.notice', $request->user(), after: ['status' => $connection->status]);
+                $connection->status = 'disconnected';
+                $connection->save();
+                $event = ServiceEvent::create(['connection_id' => $connection->id, 'actor_id' => $request->user()->id, 'action' => 'disconnect', 'reason' => 'Disconnected after notice.']);
+                $audit->record($event, 'service.disconnect', $request->user(), after: ['status' => $connection->status]);
+
+                return;
+            }
+
+            $requestEvent = ServiceEvent::create(['connection_id' => $connection->id, 'actor_id' => $request->user()->id, 'action' => 'request_reconnection', 'reason' => 'Reconnection requested after account balance clearance.']);
+            $audit->record($requestEvent, 'service.request_reconnection', $request->user(), after: ['status' => $connection->status]);
+            $connection->status = 'active';
             $connection->save();
-            $event = ServiceEvent::create([...$data, 'connection_id' => $connection->id, 'actor_id' => $request->user()->id]);
-            $audit->record($event, 'service.'.$data['action'], $request->user(), after: ['status' => $connection->status]);
+            $event = ServiceEvent::create(['connection_id' => $connection->id, 'actor_id' => $request->user()->id, 'action' => 'restore', 'reason' => 'Service restored after account balance clearance.']);
+            $audit->record($event, 'service.restore', $request->user(), after: ['status' => $connection->status]);
         });
 
         return back()->with('status', 'Service action recorded.');
@@ -102,52 +114,100 @@ class ModuleController extends Controller
 
     public function billingReport(Request $request): View
     {
-        $request->validate(['group' => ['nullable', Rule::in(['daily', 'monthly', 'yearly'])], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from']]);
-        $group = $request->input('group', 'monthly');
-        $length = match ($group) {
-            'daily' => 10, 'yearly' => 4, default => 7
-        };
-        $expression = 'SUBSTR(created_at, 1, '.$length.')';
-        $rows = Bill::where('water_provider_id', $request->user()->water_provider_id)->where('status', '!=', 'void')
-            ->when($request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $request->input('from')))
-            ->when($request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $request->input('to')))
-            ->selectRaw($expression.' as report_period, COUNT(*) as bill_count, SUM(total) as charges')
-            ->groupByRaw($expression)->orderBy('report_period')->paginate(24)->withQueryString();
+        $report = $this->combinedReport($request);
 
-        return view('provider.billing-report', compact('rows', 'group'));
+        return view('provider.billing-report', $report);
     }
 
-    public function consumptionReport(Request $request): View
+    public function billingReportCsv(Request $request): StreamedResponse
     {
-        $request->validate(['month' => ['nullable', 'date_format:Y-m'], 'search' => ['nullable', 'string', 'max:255']]);
-        $readings = MeterReading::with('connection.consumer')->where('water_provider_id', $request->user()->water_provider_id)
-            ->when($request->filled('search'), fn ($q) => $q->whereHas('connection.consumer', fn ($q) => $q->where('name', 'like', '%'.$request->input('search').'%')->orWhere('account_number', 'like', '%'.$request->input('search').'%')))
-            ->when($request->filled('month'), fn ($q) => $q->whereDate('period_month', $request->input('month').'-01'))
-            ->select('meter_readings.*')->selectSub(MeterReading::from('meter_readings as prior')->selectRaw('current_reading - previous_reading')->whereColumn('prior.connection_id', 'meter_readings.connection_id')->whereColumn('prior.period_month', '<', 'meter_readings.period_month')->latest('prior.period_month')->limit(1), 'prior_usage')
-            ->latest('period_month')->latest('id')->paginate(20)->withQueryString();
-        $rows = $readings->getCollection()->map(function (MeterReading $reading): array {
+        $report = $this->combinedReport($request);
+
+        return response()->streamDownload(function () use ($report): void {
+            $stream = fopen('php://output', 'w');
+            if ($stream === false) {
+                throw new \RuntimeException('Unable to open report output.');
+            }
+            fputcsv($stream, ['Billing month', 'Readings', 'Usage m³', 'High alerts', 'Low alerts', 'Bills', 'Billed PHP', 'Paid PHP', 'Balance PHP']);
+            foreach ($report['rows'] as $row) {
+                fputcsv($stream, array_map(static fn ($value): string => preg_match('/^[=+\-@\t\r]/', (string) $value) ? "'".$value : (string) $value, [$row['period']->format('Y-m'), $row['reading_count'], $row['usage'], $row['high_count'], $row['low_count'], $row['bill_count'], $row['billed'], $row['paid'], $row['balance']]));
+            }
+            fclose($stream);
+        }, 'billing-consumption-report-'.$report['range'].'-days.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function billingReportPrint(Request $request): View
+    {
+        return view('provider.billing-report-print', $this->combinedReport($request));
+    }
+
+    public function consumptionReport(): RedirectResponse
+    {
+        return redirect()->route('provider.reports.billing');
+    }
+
+    /** @return array{rows: Collection<int, array<string, mixed>>, kpis: array<string, string|int>, range: int, month: ?string, from: CarbonImmutable, to: CarbonImmutable} */
+    private function combinedReport(Request $request): array
+    {
+        $data = $request->validate(['range' => ['nullable', Rule::in([30, 60, 90])], 'month' => ['nullable', 'date_format:Y-m']]);
+        $range = (int) ($data['range'] ?? 30);
+        $month = $data['month'] ?? null;
+        $from = $month ? CarbonImmutable::parse($month.'-01')->startOfMonth() : CarbonImmutable::today()->subDays($range - 1)->startOfMonth();
+        $to = $month ? $from->endOfMonth() : CarbonImmutable::today()->startOfMonth();
+        $providerId = $request->user()->water_provider_id;
+        $periods = [];
+        $addPeriod = function (CarbonImmutable $period) use (&$periods): string {
+            $key = $period->format('Y-m');
+            $periods[$key] ??= ['period' => $period, 'reading_count' => 0, 'usage' => '0.000', 'high_count' => 0, 'low_count' => 0, 'bill_count' => 0, 'billed' => '0.00', 'paid' => '0.00', 'balance' => '0.00'];
+
+            return $key;
+        };
+        $readings = MeterReading::where('water_provider_id', $providerId)->whereDate('period_month', '>=', $from)->whereDate('period_month', '<=', $to)
+            ->select('meter_readings.*')->selectSub(MeterReading::from('meter_readings as prior')->selectRaw('current_reading - previous_reading')->whereColumn('prior.connection_id', 'meter_readings.connection_id')->whereColumn('prior.period_month', '<', 'meter_readings.period_month')->latest('prior.period_month')->limit(1), 'prior_usage')->get();
+        foreach ($readings as $reading) {
+            $key = $addPeriod(CarbonImmutable::parse($reading->period_month));
             $usage = bcsub($reading->current_reading, $reading->previous_reading, 3);
+            $periods[$key]['reading_count']++;
+            $periods[$key]['usage'] = bcadd($periods[$key]['usage'], $usage, 3);
             $prior = $reading->prior_usage === null ? null : bcadd((string) $reading->prior_usage, '0', 3);
-            $flag = $prior !== null && bccomp($prior, '0', 3) > 0 ? (bccomp($usage, bcmul($prior, '2', 3), 3) >= 0 ? 'Unusually high' : (bccomp($usage, bcdiv($prior, '2', 3), 3) <= 0 ? 'Unusually low' : 'Typical')) : 'No comparison';
+            if ($prior !== null && bccomp($prior, '0', 3) > 0) {
+                if (bccomp($usage, bcmul($prior, '2', 3), 3) >= 0) {
+                    $periods[$key]['high_count']++;
+                } elseif (bccomp($usage, bcdiv($prior, '2', 3), 3) <= 0) {
+                    $periods[$key]['low_count']++;
+                }
+            }
+        }
+        foreach (Bill::with('allocations')->where('water_provider_id', $providerId)->where('status', '!=', 'void')->whereDate('period_month', '>=', $from)->whereDate('period_month', '<=', $to)->get() as $bill) {
+            $key = $addPeriod(CarbonImmutable::parse($bill->period_month));
+            $periods[$key]['bill_count']++;
+            $periods[$key]['billed'] = bcadd($periods[$key]['billed'], $bill->total, 2);
+            $periods[$key]['paid'] = bcadd($periods[$key]['paid'], bcsub($bill->total, $bill->balance(), 2), 2);
+            $periods[$key]['balance'] = bcadd($periods[$key]['balance'], $bill->balance(), 2);
+        }
+        $rows = collect($periods)->sortByDesc('period')->values();
+        $kpis = [
+            'usage' => $rows->reduce(fn (string $total, array $row) => bcadd($total, $row['usage'], 3), '0.000'),
+            'bills' => $rows->sum('bill_count'),
+            'billed' => $rows->reduce(fn (string $total, array $row) => bcadd($total, $row['billed'], 2), '0.00'),
+            'paid' => $rows->reduce(fn (string $total, array $row) => bcadd($total, $row['paid'], 2), '0.00'),
+            'balance' => $rows->reduce(fn (string $total, array $row) => bcadd($total, $row['balance'], 2), '0.00'),
+        ];
 
-            return compact('reading', 'usage', 'prior', 'flag');
-        });
-
-        return view('provider.consumption-report', compact('rows', 'readings'));
+        return compact('rows', 'kpis', 'range', 'month', 'from', 'to');
     }
 
     /** @param Collection<int, Bill> $bills
      * @return list<string>
      */
-    private function eligibleServiceActions(Connection $connection, Collection $bills, ?ServiceEvent $last): array
+    private function eligibleServiceActions(Connection $connection, Collection $bills): array
     {
         $balance = $bills->reduce(fn ($sum, $bill) => bcadd($sum, $bill->balance(), 2), '0.00');
-        $overdue = $bills->contains(fn ($bill) => $bill->due_at->isBefore(today()) && bccomp($bill->balance(), '0', 2) > 0);
+        $outstandingMonths = $bills->filter(fn (Bill $bill) => bccomp($bill->balance(), '0', 2) > 0)->map(fn (Bill $bill) => $bill->period_month->format('Y-m'))->unique()->count();
 
         return match (true) {
-            $connection->status === 'active' && $overdue => [$last?->action === 'notice' ? 'disconnect' : 'notice'],
-            $connection->status === 'disconnected' && bccomp($balance, '0', 2) === 0 => ['request_reconnection'],
-            $connection->status === 'pending_reconnection' && bccomp($balance, '0', 2) === 0 => ['restore'],
+            $connection->status === 'active' && $outstandingMonths >= 2 => ['disconnect'],
+            in_array($connection->status, ['disconnected', 'pending_reconnection'], true) && bccomp($balance, '0', 2) === 0 => ['reconnect'],
             default => [],
         };
     }

@@ -27,6 +27,7 @@ class PaymentService
             $payment->status = 'verified';
             $payment->setAttribute('verified_by', $actor->id);
             $payment->verified_at = now();
+            $payment->checked_at = now();
             $payment->save();
             $bill->unsetRelation('allocations');
             $bill->status = bccomp($bill->balance(), '0.00', 2) === 0 ? 'paid' : 'partially_paid';
