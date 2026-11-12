@@ -112,15 +112,17 @@
             </flux:tooltip>
 
             @if (auth()->user()->role === \App\UserRole::Consumer)
-                @can('notifications.view')<flux:button :href="route('portal.section', 'notifications')" class="min-h-11 min-w-11" variant="ghost" icon="bell" aria-label="Notifications" />@endcan
+                @can('notifications.view')
+                    <livewire:notification-sheet />
+                @endcan
             @else
-            <flux:dropdown position="bottom" align="end">
-                <flux:button class="min-h-11 min-w-11" variant="ghost" size="sm" icon="bell" icon:variant="outline" aria-label="{{ __('Notifications') }}" />
-
-                <flux:menu>
-                    <div class="px-3 py-2 text-sm text-zinc-500 dark:text-white/80">{{ __('No notifications yet') }}</div>
-                </flux:menu>
-            </flux:dropdown>
+                <flux:modal.trigger name="header-notifications">
+                    <flux:button class="min-h-11 min-w-11" variant="ghost" size="sm" icon="bell" icon:variant="outline" aria-label="{{ __('Notifications') }}" />
+                </flux:modal.trigger>
+                <flux:modal name="header-notifications" flyout position="right" class="w-screen max-w-lg space-y-6" aria-labelledby="notification-sheet-title">
+                    <flux:heading id="notification-sheet-title" size="lg" level="2">{{ __('Notifications') }}</flux:heading>
+                    <flux:text>{{ __('No notifications yet') }}</flux:text>
+                </flux:modal>
             @endif
 
             <flux:dropdown position="bottom" align="end">
