@@ -118,10 +118,12 @@ html:has(> body.landing) { scroll-behavior: smooth; }
 .landing-mobile-menu { display: none; }
 .landing-nav-links a, .landing-sign-in { display: inline-flex; align-items: center; min-height: 44px; color: var(--landing-muted); font-size: 14px; font-weight: 650; transition: color .2s; }
 .landing-nav-links a:hover, .landing-sign-in:hover { color: var(--landing-blue); }
-.landing-button { display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 54px; padding: 0 25px; border-radius: 9px; background: var(--landing-blue); color: #fff !important; font-size: 15px; font-weight: 750; box-shadow: 0 9px 22px rgba(0, 0, 0, .15); transition: background .2s, transform .2s, box-shadow .2s; }
+.landing-button { display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 54px; padding: 0 25px; border-radius: 9px; background: var(--landing-blue); font-size: 15px; font-weight: 750; box-shadow: 0 9px 22px rgba(0, 0, 0, .15); transition: background .2s, transform .2s, box-shadow .2s; }
+.landing a.landing-button { color: #fff; }
 .landing-button:hover { background: var(--landing-ocean); transform: translateY(-2px); box-shadow: 0 14px 27px rgba(0, 0, 0, .19); }
 .landing-button-small { min-height: 44px; padding-inline: 17px; font-size: 13px; box-shadow: none; }
-.landing-button-white { background: #fff; color: var(--landing-ocean) !important; }
+.landing-button-white { background: #fff; }
+.landing a.landing-button-white { color: var(--landing-ocean); }
 .landing-button-white:hover { background: #e7f8ff; }
 .landing-button-ghost { background: transparent; border: 1px solid rgba(255,255,255,.5); color: #fff !important; box-shadow: none; }
 .landing-button-ghost:hover { background: rgba(255,255,255,.11); box-shadow: none; }

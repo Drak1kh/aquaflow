@@ -8,6 +8,10 @@
     <link rel="icon" href="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" type="image/png" sizes="96x96">
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        body.landing a.landing-button { color: #fff !important; }
+        body.landing a.landing-button-white { color: #063e91 !important; }
+    </style>
 </head>
 <body class="landing">
     <a class="landing-skip" href="#main">Skip to content</a>
