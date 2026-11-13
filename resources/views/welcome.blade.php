@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="AquaFlow brings water billing, payment records, usage and support into one place for providers and consumers.">
+    <meta name="description" content="AquaFlow connects water providers, consumers, and platform administrators through water service, billing, payments, and account management.">
     <title>AquaFlow — Water Management System</title>
     <link rel="icon" href="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" type="image/png" sizes="96x96">
     @fonts
@@ -41,7 +41,6 @@
                     <a class="landing-button landing-button-small" href="{{ route('dashboard') }}">Dashboard</a>
                 @else
                     <a class="landing-sign-in" href="{{ route('login') }}">Sign in</a>
-                    <a class="landing-button landing-button-small" href="{{ route('login') }}">Open account <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                 @endauth
             </div>
         </div>
@@ -52,31 +51,31 @@
         <section class="landing-hero" aria-labelledby="hero-title">
             <div class="landing-container landing-hero-grid">
                 <div class="landing-hero-copy">
-                    <p class="landing-hero-note"><span></span> Water operations, clearly connected</p>
-                    <h1 id="hero-title">Smarter water management.<br><em>Better service.</em> Every drop counts.</h1>
-                    <p class="landing-hero-lead">AquaFlow brings water consumption, billing, payment records, and support requests into one place for providers and consumers.</p>
+                    <p class="landing-hero-note"><span></span> For water providers and their communities</p>
+                    <h1 id="hero-title">Water service, billing, and payments.<br><em>One clear flow.</em></h1>
+                    <p class="landing-hero-lead">AquaFlow connects water providers, consumers, and platform administrators. Manage accounts, connections, meter readings, bills, payments, and service updates in one place.</p>
                     <div class="landing-hero-actions">
                         @auth
                             <a class="landing-button landing-button-white" href="{{ route('dashboard') }}">Open dashboard <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @else
-                            <a class="landing-button landing-button-white" href="{{ route('login') }}">Get started <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
+                            <a class="landing-button landing-button-white" href="{{ route('login') }}">Sign in <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-up-right" /></svg></a>
                         @endauth
                         <a class="landing-button landing-button-ghost" href="#features">Explore AquaFlow <svg class="landing-arrow-icon" aria-hidden="true"><use href="#landing-arrow-down" /></svg></a>
                     </div>
-                    <p class="landing-hero-trust">Accounts are created by your provider or AquaFlow administrator. Sign in with the details they gave you.</p>
+                    <p class="landing-hero-trust">Bring account, billing, payment, and service information into a single view.</p>
                 </div>
                 <div class="landing-preview-wrap">
-                    <div class="landing-preview-caption"><span>AquaFlow across your devices</span><strong>Illustrative preview</strong></div>
-                    <div class="landing-device-stage" role="img" aria-label="Illustrative AquaFlow dashboard on a laptop, billing on a tablet, and service alerts on a phone">
+                    <div class="landing-preview-caption"><span>AquaFlow across your devices</span><strong>Example screens · Sample data</strong></div>
+                    <div class="landing-device-stage" role="img" aria-label="Example AquaFlow provider dashboard on a laptop, consumer billing on a tablet, and service alerts on a phone, with sample data">
                         <div class="landing-device-laptop" aria-hidden="true">
                             <div class="landing-laptop-frame">
                                 <div class="landing-preview">
                                     <div class="landing-preview-sidebar">
                                         <div class="landing-preview-logo"><img src="{{ asset('assets/aquaflow-logo/favicon-96x96.png') }}" alt="" width="25" height="25"> AquaFlow</div>
-                                        <span class="selected">Overview</span><span>Consumption</span><span>Billing</span><span>Service requests</span>
+                                        <span class="selected">Overview</span><span>Connections</span><span>Billing</span><span>Payments</span>
                                     </div>
                                     <div class="landing-preview-content">
-                                        <div class="landing-preview-top"><div><small>UTILITY OVERVIEW</small><strong>Good morning, Admin</strong></div><b>AF</b></div>
+                                        <div class="landing-preview-top"><div><small>PROVIDER OVERVIEW</small><strong>Good morning, Admin</strong></div><b>AF</b></div>
                                         <div class="landing-preview-metrics"><div><small>Current consumption</small><strong>24.8 <span>m³</span></strong><em>This billing period</em></div><div><small>Collection rate</small><strong>94.6<span>%</span></strong><em>Monthly overview</em></div><div><small>Active consumers</small><strong>2,458</strong><em>Connected accounts</em></div></div>
                                         <div class="landing-preview-chart">
                                             <div><strong>Water consumption</strong><small>Monthly usage overview</small></div>

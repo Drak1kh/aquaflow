@@ -472,7 +472,7 @@ input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
 input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { appearance: none; margin: 0; }
 dialog.aquaflow-modal::backdrop { background: rgb(9 24 44 / 0.56); backdrop-filter: blur(4px); }
 @media (prefers-reduced-motion: reduce) { dialog.aquaflow-modal::backdrop { backdrop-filter: none; } }
-body a:not([data-flux-button]):not([data-flux-pagination] *) {
+body:not(.landing) a:not([data-flux-button]):not([data-flux-pagination] *) {
     color: inherit !important;
     text-decoration: none !important;
 }
