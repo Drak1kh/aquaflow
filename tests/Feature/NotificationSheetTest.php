@@ -4,9 +4,34 @@ use App\Models\ClientNotice;
 use App\Models\Consumer;
 use App\Models\RolePermission;
 use App\Models\User;
+use App\Models\WaterProvider;
+use App\UserRole;
 use Livewire\Livewire;
 
-test('the header contains a notification sheet with only the current consumer inbox', function () {
+test('every role uses the shared notification panel without exposing another inbox', function (UserRole $role, string $routeName, string $emptyMessage) {
+    $user = User::factory()->create([
+        'role' => $role,
+        'consumer_id' => $role === UserRole::Consumer ? Consumer::factory() : null,
+        'water_provider_id' => $role === UserRole::WaterProvider ? WaterProvider::factory() : null,
+    ]);
+    ClientNotice::factory()->create(['title' => 'Private consumer notification']);
+
+    $response = $this->actingAs($user)->get(route($routeName))
+        ->assertOk()->assertSee('id="header-notifications"', false)
+        ->assertSee('role="dialog"', false)->assertSee('popover="manual"', false)
+        ->assertSee($emptyMessage)->assertDontSee('Private consumer notification');
+
+    if ($role !== UserRole::Consumer) {
+        $response->assertDontSee('wire:click="toggleUnread"', false)
+            ->assertDontSee('wire:click="markAllAsRead"', false);
+    }
+})->with([
+    'super admin' => [UserRole::SuperAdmin, 'dashboard.admin', 'No notifications yet'],
+    'water provider' => [UserRole::WaterProvider, 'dashboard.provider', 'No notifications yet'],
+    'consumer' => [UserRole::Consumer, 'dashboard.consumer', 'No notifications to show.'],
+]);
+
+test('the header contains an accessible notification panel with only the current consumer inbox', function () {
     $consumer = Consumer::factory()->create();
     $client = User::factory()->create(['consumer_id' => $consumer->id]);
     ClientNotice::factory()->create(['user_id' => $client->id, 'title' => 'Your latest bill']);
@@ -14,7 +39,8 @@ test('the header contains a notification sheet with only the current consumer in
     ClientNotice::factory()->create(['user_id' => $client->id, 'consumer_id' => Consumer::factory(), 'title' => 'Previous consumer notice']);
 
     $this->actingAs($client)->get(route('portal.section', 'account'))
-        ->assertOk()->assertSee('data-modal="header-notifications"', false)
+        ->assertOk()->assertSee('id="header-notifications"', false)
+        ->assertSee('role="dialog"', false)->assertSee('popover="manual"', false)
         ->assertSee('Your latest bill')->assertDontSee('Another account notice')->assertDontSee('Previous consumer notice');
 });
 
@@ -33,6 +59,20 @@ test('consumers filter and mark notifications read inside the sheet', function (
     expect($unread->fresh()->read_at)->not->toBeNull();
     expect($other->fresh()->read_at)->toBeNull();
 });
+
+test('notification document links use normal navigation so print styles cannot leak into the portal', function (string $url) {
+    $client = User::factory()->create(['consumer_id' => Consumer::factory()]);
+    ClientNotice::factory()->create(['user_id' => $client->id, 'url' => $url]);
+
+    $html = Livewire::actingAs($client)->test('notification-sheet')->html();
+    $document = new DOMDocument;
+    @$document->loadHTML($html);
+    $link = (new DOMXPath($document))->query('//a[@href="'.$url.'"]')->item(0);
+
+    expect($link)->not->toBeNull();
+    expect($link->textContent)->toContain('View details');
+    expect($link->hasAttribute('wire:navigate'))->toBeFalse();
+})->with(['/documents/bills/123', '/documents/payments/123']);
 
 test('marking all notifications read excludes other accounts and previous consumers', function () {
     $client = User::factory()->create(['consumer_id' => Consumer::factory()]);
@@ -61,6 +101,6 @@ test('notification permission is required to render the consumer sheet', functio
     RolePermission::factory()->create(['role' => 'consumer', 'permission' => 'notifications.view', 'allowed' => false]);
 
     $this->actingAs($client)->get(route('portal.section', 'account'))
-        ->assertOk()->assertDontSee('data-modal="header-notifications"', false);
+        ->assertOk()->assertDontSee('id="header-notifications"', false);
     Livewire::test('notification-sheet')->assertForbidden();
 });

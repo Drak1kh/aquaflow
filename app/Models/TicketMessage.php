@@ -24,4 +24,10 @@ class TicketMessage extends Model
     {
         return $this->belongsTo(SupportTicket::class);
     }
+
+    /** @return BelongsTo<User, $this> */
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author_id');
+    }
 }

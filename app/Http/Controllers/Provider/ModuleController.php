@@ -25,9 +25,26 @@ class ModuleController extends Controller
 {
     public function tickets(Request $request): View
     {
-        $tickets = SupportTicket::with(['consumer', 'messages' => fn ($q) => $q->where('internal', false)])->where('water_provider_id', $request->user()->water_provider_id)->latest('id')->paginate(20)->withQueryString();
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', Rule::in(['open', 'under_review', 'referred_to_provider', 'waiting_for_consumer', 'resolved', 'closed'])],
+            'ticket' => ['nullable', 'integer'],
+        ]);
+        $search = trim($request->string('search')->toString());
+        $ticketId = ltrim($search, '#');
+        $query = SupportTicket::with('consumer')->where('water_provider_id', $request->user()->water_provider_id)
+            ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q
+                ->where('subject', 'like', '%'.$search.'%')
+                ->orWhereHas('consumer', fn ($q) => $q->where('name', 'like', '%'.$search.'%')->orWhere('account_number', 'like', '%'.$search.'%'))
+                ->when(ctype_digit($ticketId), fn ($q) => $q->orWhere('id', $ticketId))))
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')));
+        $tickets = (clone $query)->latest('id')->paginate(20)->appends($request->except('ticket'));
+        $selectedTicket = $request->filled('ticket')
+            ? (clone $query)->whereKey($request->integer('ticket'))->firstOrFail()
+            : $tickets->first();
+        $selectedTicket?->load(['messages' => fn ($q) => $q->where('internal', false)->oldest('id')->with('author')]);
 
-        return view('provider.tickets', compact('tickets'));
+        return view('provider.tickets', compact('tickets', 'selectedTicket'));
     }
 
     public function service(Request $request): View

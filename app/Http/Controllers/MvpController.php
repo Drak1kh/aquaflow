@@ -10,7 +10,6 @@ use App\Models\Connection;
 use App\Models\Consumer;
 use App\Models\MeterReading;
 use App\Models\Payment;
-use App\Models\WaterProvider;
 use App\UserRole;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -134,25 +133,63 @@ class MvpController extends Controller
         return back()->with('status', 'Reading corrected.');
     }
 
+    public function deleteReading(Request $request, MeterReading $reading, AuditLogger $audit): RedirectResponse
+    {
+        abort_unless($reading->water_provider_id === $request->user()->water_provider_id, 404);
+        DB::transaction(function () use ($reading, $request, $audit): void {
+            Connection::whereKey($reading->connection_id)->lockForUpdate()->firstOrFail();
+            $reading = MeterReading::whereKey($reading->id)->lockForUpdate()->firstOrFail();
+            if (Bill::where('meter_reading_id', $reading->id)->exists() || MeterReading::where('connection_id', $reading->connection_id)->where('period_month', '>', $reading->period_month)->exists()) {
+                throw ValidationException::withMessages(['current_reading' => 'Only the latest unbilled reading can be deleted.']);
+            }
+            $audit->record($reading, 'reading.deleted', $request->user(), before: $reading->toArray());
+            $reading->delete();
+        });
+
+        return back()->with('status', 'Reading deleted.');
+    }
+
     public function submitPayment(Request $request, AuditLogger $audit): RedirectResponse
     {
         Gate::authorize('payments.view');
         $consumer = $request->user()->consumer;
         $data = $request->validate([
-            'bill_id' => ['required', Rule::exists('bills', 'id')->where('consumer_id', $consumer->id)],
+            'payment_scope' => ['nullable', Rule::in(['single', 'all'])],
+            'bill_id' => [Rule::excludeIf($request->input('payment_scope') === 'all'), 'required', 'integer', Rule::exists('bills', 'id')->where('consumer_id', $consumer->id)->where('water_provider_id', $consumer->water_provider_id)],
             'reference' => ['required', 'string', 'max:80', Rule::unique('payments')->where('water_provider_id', $consumer->water_provider_id)],
-            'amount' => ['required', 'decimal:0,2', 'gt:0'], 'paid_at' => ['required', 'date', 'before_or_equal:today'],
+            'amount' => ['required', 'decimal:0,2', 'gt:0', 'max:999999999999.99'], 'paid_at' => ['required', 'date', 'before_or_equal:today'],
             'proof' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
-        $bill = Bill::findOrFail($data['bill_id']);
-        if ($bill->status === 'void' || bccomp($data['amount'], $bill->balance(), 2) > 0) {
-            throw ValidationException::withMessages(['amount' => 'The amount exceeds the bill balance.']);
-        }
-        unset($data['proof']);
-        $payment = Payment::create([...$data, 'consumer_id' => $consumer->id, 'water_provider_id' => $consumer->water_provider_id, 'method' => 'other', 'proof_path' => $request->file('proof')->store('payment-proofs', 'local')]);
-        $audit->record($payment, 'payment.submitted', $request->user(), after: ['amount' => $payment->amount]);
+        DB::transaction(function () use ($request, $consumer, $data, $audit): void {
+            $bills = Bill::with('allocations')->where('consumer_id', $consumer->id)->where('water_provider_id', $consumer->water_provider_id)
+                ->when(($data['payment_scope'] ?? 'single') !== 'all', fn ($query) => $query->whereKey($data['bill_id']))
+                ->where('status', '!=', 'void')->orderBy('id')->lockForUpdate()->get()
+                ->filter(fn (Bill $bill) => bccomp($bill->balance(), '0.00', 2) > 0)
+                ->sortBy(fn (Bill $bill) => $bill->period_month->toDateString().str_pad((string) $bill->id, 20, '0', STR_PAD_LEFT));
+            $total = $bills->reduce(fn ($sum, $bill) => bcadd($sum, $bill->balance(), 2), '0.00');
+            if (bccomp($data['amount'], $total, 2) > 0) {
+                throw ValidationException::withMessages(['amount' => 'The amount exceeds the selected bill balance.']);
+            }
+            $remaining = bcadd($data['amount'], '0.00', 2);
+            $items = [];
+            foreach ($bills as $bill) {
+                if (bccomp($remaining, '0.00', 2) === 0) {
+                    break;
+                }
+                $amount = bccomp($remaining, $bill->balance(), 2) < 0 ? $remaining : $bill->balance();
+                $items[] = ['bill_id' => $bill->id, 'amount' => $amount];
+                $remaining = bcsub($remaining, $amount, 2);
+            }
+            $payment = Payment::create([
+                'bill_id' => $items[0]['bill_id'], 'reference' => $data['reference'], 'amount' => $data['amount'], 'paid_at' => $data['paid_at'],
+                'consumer_id' => $consumer->id, 'water_provider_id' => $consumer->water_provider_id, 'method' => 'other',
+                'proof_path' => $request->file('proof')->store('payment-proofs', 'local'),
+            ]);
+            $payment->items()->createMany($items);
+            $audit->record($payment, 'payment.submitted', $request->user(), after: ['amount' => $payment->amount]);
+        });
 
-        return back()->with('status', 'Payment submitted for verification.');
+        return to_route('portal.section', 'payments')->with('status', 'Payment submitted for verification.');
     }
 
     public function bill(Request $request, Bill $bill): View
@@ -172,6 +209,9 @@ class MvpController extends Controller
         Gate::authorize('payments.view');
         $this->authorizeDocument($request, $payment->consumer_id, $payment->water_provider_id);
         abort_unless($payment->status === 'verified', 404);
+        if ($payment->receipt_snapshot) {
+            return view('consumer.receipt', ['receipt' => $payment->receipt_snapshot]);
+        }
         $bill = Bill::with(['consumer', 'waterProvider', 'allocations', 'adjustments'])->findOrFail($payment->bill_id);
 
         return view('consumer.document', [

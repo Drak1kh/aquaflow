@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Actions\AuditLogger;
 use App\Actions\BillingService;
+use App\Actions\CloseTicket;
 use App\Actions\DashboardTrends;
 use App\Actions\PaymentService;
 use App\Actions\PlatformSettings;
@@ -90,7 +91,7 @@ class OperationsController extends Controller
                 ? Bill::with(['connection', 'allocations'])->where('water_provider_id', $providerId)->where('consumer_id', $previewedConsumer->id)->where('status', '!=', 'void')->when($request->filled('period'), fn ($query) => $query->whereDate('period_month', $request->input('period').'-01'))->latest('period_month')->latest('id')->get()
                 : collect();
             $previewPayments = $previewedConsumer && $canViewPayments
-                ? Payment::with('bill.connection')->where('water_provider_id', $providerId)->where('consumer_id', $previewedConsumer->id)->whereHas('bill', fn ($query) => $query->where('status', '!=', 'void')->when($request->filled('period'), fn ($query) => $query->whereDate('period_month', $request->input('period').'-01')))->latest('paid_at')->latest('id')->get()
+                ? Payment::with(['bill.connection', 'items.bill.connection', 'allocations.bill.connection'])->where('water_provider_id', $providerId)->where('consumer_id', $previewedConsumer->id)->whereHasCoveredBill(fn ($query) => $query->where('status', '!=', 'void')->when($request->filled('period'), fn ($query) => $query->whereDate('period_month', $request->input('period').'-01')))->latest('paid_at')->latest('id')->get()
                 : collect();
             $monthlyReports = [];
             $addReport = function (string $period) use (&$monthlyReports): string {
@@ -118,18 +119,23 @@ class OperationsController extends Controller
                 unset($report);
             }
             foreach ($previewPayments as $payment) {
-                $key = $addReport($payment->bill->period_month->toDateString());
-                $report = &$monthlyReports[$key];
-                if ($canViewReadings) {
-                    $report['meters'][$payment->bill->connection->id] = $payment->bill->connection->meter_number;
+                $paymentBills = $payment->coveredBills()->filter(fn (Bill $bill) => $bill->status !== 'void' && (!$request->filled('period') || $bill->period_month->format('Y-m') === $request->input('period')));
+                foreach ($paymentBills->groupBy(fn (Bill $bill) => $bill->period_month->toDateString()) as $period => $monthBills) {
+                    $key = $addReport($period);
+                    $report = &$monthlyReports[$key];
+                    if ($canViewReadings) {
+                        foreach ($monthBills as $bill) {
+                            $report['meters'][$bill->connection->id] = $bill->connection->meter_number;
+                        }
+                    }
+                    $report['has_payment_activity'] = true;
+                    if ($payment->status === 'pending') {
+                        $report['pending_count']++;
+                    } elseif ($payment->status === 'rejected') {
+                        $report['rejected_count']++;
+                    }
+                    unset($report);
                 }
-                $report['has_payment_activity'] = true;
-                if ($payment->status === 'pending') {
-                    $report['pending_count']++;
-                } elseif ($payment->status === 'rejected') {
-                    $report['rejected_count']++;
-                }
-                unset($report);
             }
             $monthlyReports = collect($monthlyReports)->map(function (array $report): array {
                 $meters = array_values($report['meters']);
@@ -171,7 +177,7 @@ class OperationsController extends Controller
         } elseif ($module === 'readings') {
             $providerReadings = MeterReading::where('water_provider_id', $providerId);
             $providerConnections = Connection::where('water_provider_id', $providerId);
-            $history = MeterReading::with('connection.consumer')->where('water_provider_id', $providerId)
+            $history = MeterReading::with(['connection.consumer', 'connection.latestReading'])->where('water_provider_id', $providerId)
                 ->when($request->filled('search'), fn ($q) => $q->whereHas('connection.consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)))
                 ->when($request->filled('period'), fn ($q) => $q->whereDate('period_month', $request->input('period').'-01'))
                 ->select('meter_readings.*')
@@ -189,18 +195,28 @@ class OperationsController extends Controller
         } elseif ($module === 'billing') {
             $sort = $request->input('sort', 'period_month');
             $direction = $request->input('direction', 'desc');
+            $rates = WaterRate::where('water_provider_id', $providerId)->latest('effective_from')->limit(8)->get();
+            $latestMonth = CarbonImmutable::parse($rates->first()?->effective_from ?? now())->startOfMonth();
+            $rateHistory = WaterRate::where('water_provider_id', $providerId)
+                ->whereDate('effective_from', '>=', $latestMonth->subMonths(5)->toDateString())
+                ->latest('effective_from')->latest('id')->get()
+                ->unique(fn (WaterRate $rate) => $rate->effective_from->format('Y-m'))
+                ->keyBy(fn (WaterRate $rate) => $rate->effective_from->format('Y-m'));
+            $firstMonth = CarbonImmutable::parse($rateHistory->last()?->effective_from ?? $latestMonth)->startOfMonth();
+            $monthCount = max(3, (int) $firstMonth->diffInMonths($latestMonth) + 1);
             $data += [
                 'connections' => $connections->orderBy('number')->limit(50)->get(),
                 'defaultDueDays' => (int) app(PlatformSettings::class)->numberForProvider($request->user()->waterProvider, 'due_days'),
-                'rates' => WaterRate::where('water_provider_id', $providerId)->latest('effective_from')->limit(8)->get(),
-                'rateHistory' => WaterRate::where('water_provider_id', $providerId)->latest('effective_from')->limit(6)->get()->sortBy('effective_from')->values(),
+                'rates' => $rates,
+                'rateHistory' => $rateHistory,
+                'rateHistoryMonths' => collect(range(0, $monthCount - 1))->map(fn (int $offset) => $firstMonth->addMonths($offset)),
                 'sort' => $sort, 'direction' => $direction,
                 'bills' => $bills->with(['consumer', 'allocations'])->when($sort === 'balance', fn ($query) => $query->withSum('allocations', 'amount')->orderByRaw('total - COALESCE(allocations_sum_amount, 0) '.$direction), fn ($query) => $query->orderBy($sort, $direction))->latest('period_month')->orderBy('consumer_id')->latest('id')->paginate(20)->withQueryString(),
             ];
         } elseif ($module === 'payments') {
             $selectedBill = $request->filled('bill') ? Bill::with(['consumer', 'connection', 'allocations'])->where('water_provider_id', $providerId)->findOrFail($request->input('bill')) : null;
-            $payments = Payment::with(['consumer', 'bill.connection'])->where('water_provider_id', $providerId)
-                ->when($selectedBill, fn ($q) => $q->where('bill_id', $selectedBill->id))
+            $payments = Payment::with(['consumer', 'bill.connection', 'items.bill.connection', 'allocations.bill.connection'])->where('water_provider_id', $providerId)
+                ->when($selectedBill, fn ($q) => $q->whereHasCoveredBill(fn ($bill) => $bill->whereKey($selectedBill->id)))
                 ->when($request->filled('period'), fn ($q) => $q->where('paid_at', '>=', $request->input('period').'-01')->where('paid_at', '<', CarbonImmutable::parse($request->input('period').'-01')->addMonth()))
                 ->when($request->filled('search'), fn ($q) => $q->whereHas('consumer', fn ($q) => $q->where('name', 'like', $search)->orWhere('account_number', 'like', $search)));
             $data += [
@@ -476,43 +492,60 @@ class OperationsController extends Controller
     public function escalate(Request $request, SupportTicket $ticket, AuditLogger $audit, PlatformSettings $settings): RedirectResponse
     {
         $this->scope($request, $ticket);
-        abort_if($ticket->escalated_at !== null, 422);
-        $ticket->escalated_at = now();
-        $ticket->status = 'under_review';
-        $ticket->save();
-        $audit->record($ticket, 'ticket.escalated', $request->user());
+        DB::transaction(function () use ($request, $ticket, $audit): void {
+            $ticket = SupportTicket::whereKey($ticket->id)->lockForUpdate()->firstOrFail();
+            $this->scope($request, $ticket);
+            abort_if($ticket->status === 'closed' || $ticket->escalated_at !== null, 422);
+            $ticket->escalated_at = now();
+            $ticket->status = 'under_review';
+            $ticket->save();
+            $audit->record($ticket, 'ticket.escalated', $request->user());
+        });
 
         if ($settings->get('email_notifications') === '1') {
             User::where('role', UserRole::SuperAdmin->value)->where('is_active', true)
                 ->whereNotNull('email')->each(fn (User $admin) => $admin->notify(new EscalatedTicketNotification($ticket->id, $ticket->subject, $ticket->waterProvider->name)));
         }
 
-        return back()->with('status', 'Ticket escalated to Super Admin.');
+        return redirect()->route('provider.tickets.index', ['ticket' => $ticket->id])->with('status', 'Ticket escalated to Super Admin.');
     }
 
     public function replyTicket(Request $request, SupportTicket $ticket, AuditLogger $audit): RedirectResponse
     {
         $this->scope($request, $ticket);
         abort_if($ticket->status === 'closed', 422);
-        $data = $request->validate([
+        $data = $request->validateWithBag('reply-to-ticket-'.$ticket->id, [
             'body' => ['required', 'string', 'max:10000'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
-        $message = $ticket->messages()->create([
-            'author_id' => $request->user()->id,
-            'body' => $data['body'],
-            'attachment_path' => $request->file('attachment')?->store('ticket-attachments'),
-            'attachment_name' => $request->file('attachment')?->getClientOriginalName(),
-        ]);
-        $audit->record($message, 'ticket.message_added', $request->user(), after: ['ticket_id' => $ticket->id]);
+        DB::transaction(function () use ($request, $ticket, $data, $audit): void {
+            $ticket = SupportTicket::whereKey($ticket->id)->lockForUpdate()->firstOrFail();
+            $this->scope($request, $ticket);
+            abort_if($ticket->status === 'closed', 422);
+            $message = $ticket->messages()->create([
+                'author_id' => $request->user()->id,
+                'body' => $data['body'],
+                'attachment_path' => $request->file('attachment')?->store('ticket-attachments'),
+                'attachment_name' => $request->file('attachment')?->getClientOriginalName(),
+            ]);
+            $audit->record($message, 'ticket.message_added', $request->user(), after: ['ticket_id' => $ticket->id]);
+        });
 
         return back()->with('status', 'Response sent.');
+    }
+
+    public function closeTicket(Request $request, SupportTicket $ticket, CloseTicket $closeTicket): RedirectResponse
+    {
+        $this->scope($request, $ticket);
+        $closeTicket->handle($ticket, $request->user(), $request->input('resolution'));
+
+        return redirect()->route('provider.tickets.index', ['ticket' => $ticket->id])->with('status', 'Ticket closed.');
     }
 
     public function attachment(Request $request, TicketMessage $message): StreamedResponse
     {
         $this->scope($request, $message->supportTicket);
-        abort_if($message->attachment_path === null, 404);
+        abort_if($message->internal || $message->attachment_path === null, 404);
 
         return Storage::disk('local')->download($message->attachment_path, $message->attachment_name);
     }

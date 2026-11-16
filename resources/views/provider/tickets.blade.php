@@ -1,29 +1,25 @@
 <x-layouts::app title="Support Tickets">
-<div class="provider-page w-full min-w-0 space-y-6">
-<x-page-header title="Support Tickets" description="Respond to consumer concerns and escalate disputes that require Super Admin review." />
-@forelse ($tickets as $ticket)
-    <article class="space-y-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
-        <flux:heading level="2">{{ $ticket->subject }} · {{ $ticket->consumer->name }}</flux:heading>
-        <flux:text>{{ ucfirst(str_replace('_', ' ', $ticket->status)) }} · {{ $ticket->escalated_at ? 'Escalated to Super Admin' : 'Provider review' }}</flux:text>
-        <flux:text>{{ $ticket->description }}</flux:text>
-        @foreach ($ticket->messages as $message)
-            <flux:text>{{ $message->body }} @if ($message->attachment_path)<a href="{{ route('provider.tickets.attachment', $message) }}">Download attachment</a>@endif</flux:text>
-        @endforeach
-        @can('tickets.respond')
-            @if (!$ticket->escalated_at && $ticket->status !== 'closed')
-                <form method="POST" action="{{ route('provider.tickets.escalate', $ticket) }}">@csrf<flux:button type="submit">Escalate for administrative review</flux:button></form>
+    <div class="provider-page w-full min-w-0 space-y-6">
+        <x-page-header title="Customer Support & Inquiries" description="Review billing, payment, and service concerns. Respond to customers or escalate disputes for administrative review." />
+
+        <form method="GET" action="{{ route('provider.tickets.index') }}" class="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 sm:flex-row sm:items-end dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="min-w-0 flex-1">
+                <flux:input name="search" label="Search tickets" icon="magnifying-glass" placeholder="Ticket #, subject, customer, or account…" :value="request('search')" maxlength="255" />
+            </div>
+            <div class="sm:w-52">
+                <flux:select name="status" label="Status">
+                    <option value="">All statuses</option>
+                    @foreach (['open', 'under_review', 'referred_to_provider', 'waiting_for_consumer', 'resolved', 'closed'] as $status)
+                        <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>
+                    @endforeach
+                </flux:select>
+            </div>
+            <flux:button type="submit">Filter tickets</flux:button>
+            @if (request()->filled('search') || request()->filled('status'))
+                <flux:button :href="route('provider.tickets.index')" variant="ghost">Clear</flux:button>
             @endif
-            @if ($ticket->status !== 'closed')
-                <form method="POST" action="{{ route('provider.tickets.reply', $ticket) }}" enctype="multipart/form-data" class="space-y-3">
-                    @csrf
-                    <flux:textarea name="body" label="Response" placeholder="Explain the next step or resolution" required />
-                    <flux:input name="attachment" type="file" label="Attachment (PDF or image, up to 5 MB)" accept=".pdf,.jpg,.jpeg,.png" />
-                    <flux:button type="submit">Send response</flux:button>
-                </form>
-            @endif
-        @endcan
-    </article>
-@empty <flux:text>No support tickets have been submitted.</flux:text> @endforelse
-{{ $tickets->links() }}
-</div>
+        </form>
+
+        <x-ticket-workspace :tickets="$tickets" :selected-ticket="$selectedTicket" />
+    </div>
 </x-layouts::app>

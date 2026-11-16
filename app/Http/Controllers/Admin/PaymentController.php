@@ -18,7 +18,7 @@ class PaymentController extends Controller
     public function index(Request $request): View
     {
         $request->validate(['provider' => ['nullable', 'integer', 'exists:water_providers,id'], 'status' => ['nullable', Rule::in(['pending', 'verified', 'rejected'])], 'method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'e_wallet', 'other'])], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from']]);
-        $payments = Payment::with(['waterProvider', 'consumer', 'bill'])
+        $payments = Payment::with(['waterProvider', 'consumer', 'bill.connection', 'items.bill.connection', 'allocations.bill.connection'])
             ->when($request->filled('provider'), fn ($query) => $query->where('water_provider_id', $request->integer('provider')))
             ->when($request->filled('method'), fn ($query) => $query->where('method', $request->string('method')))
             ->when($request->filled('from'), fn ($query) => $query->whereDate('paid_at', '>=', $request->date('from')))
@@ -37,7 +37,7 @@ class PaymentController extends Controller
     public function show(Payment $payment): View
     {
         return view('admin.payment', [
-            'payment' => $payment->load(['waterProvider', 'consumer', 'bill', 'allocations']),
+            'payment' => $payment->load(['waterProvider', 'consumer', 'bill.connection', 'items.bill.connection', 'allocations.bill.connection']),
             'activity' => AuditLog::where('subject_type', $payment->getMorphClass())->where('subject_id', $payment->id)->latest('id')->get(),
         ]);
     }

@@ -66,12 +66,21 @@ class PortalController extends Controller
         } elseif ($section === 'payments') {
             Gate::authorize('payments.view');
             $request->validate(['status' => ['nullable', Rule::in(['pending', 'verified', 'rejected'])], 'bill' => ['nullable', 'integer']]);
-            $data['payments'] = Payment::with('bill')->where('consumer_id', $consumer->id)->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))->latest('paid_at')->latest('id')->paginate(20)->withQueryString();
-            $data['bills'] = Bill::with('allocations')->where('consumer_id', $consumer->id)->where('status', '!=', 'void')->whereRaw('total > (select coalesce(sum(amount), 0) from payment_allocations where bill_id = bills.id)')->latest('period_month')->limit(50)->get();
+            $data['payments'] = Payment::with(['bill.connection', 'items.bill.connection', 'allocations.bill.connection'])->where('consumer_id', $consumer->id)->where('water_provider_id', $consumer->water_provider_id)->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))->latest('paid_at')->latest('id')->paginate(20)->withQueryString();
+            $data['allBills'] = Bill::with(['allocations', 'connection'])->where('consumer_id', $consumer->id)->where('water_provider_id', $consumer->water_provider_id)->where('status', '!=', 'void')->whereRaw('total > (select coalesce(sum(amount), 0) from payment_allocations where bill_id = bills.id)')->orderBy('period_month')->orderBy('id')->get();
+            $data['allBillsTotal'] = $data['allBills']->reduce(fn ($sum, $bill) => bcadd($sum, $bill->balance(), 2), '0.00');
+            $data['bills'] = $data['allBills']->reverse()->take(50)->values();
             if ($request->filled('bill')) {
-                $selected = Bill::with('allocations')->where('consumer_id', $consumer->id)->findOrFail($request->input('bill'));
+                $selected = Bill::with(['allocations', 'connection'])->where('consumer_id', $consumer->id)->where('water_provider_id', $consumer->water_provider_id)->findOrFail($request->input('bill'));
                 if ($selected->status !== 'void' && bccomp($selected->balance(), '0', 2) > 0) {
                     $data['bills']->push($selected);
+                    $data['bills'] = $data['bills']->unique('id');
+                }
+            }
+            if (old('bill_id')) {
+                $retryBill = $data['allBills']->firstWhere('id', old('bill_id'));
+                if ($retryBill) {
+                    $data['bills']->push($retryBill);
                     $data['bills'] = $data['bills']->unique('id');
                 }
             }
@@ -82,7 +91,8 @@ class PortalController extends Controller
             $data['unreadCount'] = ClientNotice::where('user_id', $request->user()->id)->where('consumer_id', $request->user()->consumer_id)->whereNull('read_at')->count();
         } elseif ($section === 'support') {
             if ($request->user()->can('tickets.view')) {
-                $data['tickets'] = SupportTicket::where('consumer_id', $consumer->id)->latest('id')->paginate(20);
+                $data['tickets'] = SupportTicket::with(['consumer', 'messages' => fn ($query) => $query->where('internal', false)->oldest('id')->with('author')])
+                    ->where('consumer_id', $consumer->id)->latest('id')->paginate(20);
             }
         }
 

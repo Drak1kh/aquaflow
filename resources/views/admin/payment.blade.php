@@ -2,7 +2,7 @@
     <div class="w-full min-w-0 space-y-7">
         <x-page-header :title="$payment->reference" :description="$payment->waterProvider->name.' · '.$payment->consumer->name" :back-href="route('admin.payments.index')" :back-label="__('Payment oversight')" />
         <dl class="grid gap-4 rounded-xl border border-zinc-200 bg-white p-6 sm:grid-cols-2 dark:border-zinc-700 dark:bg-zinc-900">
-            @foreach ([[__('Bill'), $payment->bill->number], [__('Amount (PHP)'), $payment->amount], [__('Method'), ucfirst(str_replace('_', ' ', $payment->method))], [__('Payment date'), $payment->paid_at->format(app(\App\Actions\PlatformSettings::class)->get('date_format'))], [__('Status'), ucfirst($payment->status)], [__('Remarks'), $payment->remarks ?? '—']] as [$label, $value])
+            @foreach ([[__('Bill'), $payment->coveredBills()->map(fn ($bill) => $bill->number.' · '.$bill->period_month->format('M Y').' · '.$bill->connection->meter_number.' · ₱'.$payment->amountForBill($bill))->implode(', ')], [__('Amount (PHP)'), $payment->amount], [__('Method'), ucfirst(str_replace('_', ' ', $payment->method))], [__('Payment date'), $payment->paid_at->format(app(\App\Actions\PlatformSettings::class)->get('date_format'))], [__('Status'), ucfirst($payment->status)], [__('Remarks'), $payment->remarks ?? '—']] as [$label, $value])
                 <div><dt class="text-sm text-zinc-500">{{ $label }}</dt><dd class="mt-1 font-medium">{{ $value }}</dd></div>
             @endforeach
         </dl>

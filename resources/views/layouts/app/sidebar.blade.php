@@ -41,8 +41,8 @@
                 @elseif (auth()->user()->role !== \App\UserRole::Consumer)
                     @include('partials.provider-navigation')
                 @else
-                    @foreach (['account' => ['My Account', 'identification'], 'connection' => ['My Connection', 'arrows-right-left'], 'bills' => ['My Bills', 'document-text'], 'payments' => ['Payments', 'credit-card'], 'notifications' => ['Notifications', 'bell'], 'faq' => ['FAQs', 'book-open-text'], 'support' => ['Help & Support', 'lifebuoy']] as $section => [$label, $icon])
-                        @can(match ($section) {'bills' => 'billing.view', 'payments' => 'payments.view', 'notifications' => 'notifications.view', default => 'access-consumer'})
+                    @foreach (['account' => ['My Account', 'identification'], 'connection' => ['My Connection', 'arrows-right-left'], 'bills' => ['My Bills', 'document-text'], 'payments' => ['Payments', 'credit-card'], 'faq' => ['FAQs', 'book-open-text'], 'support' => ['Help & Support', 'lifebuoy']] as $section => [$label, $icon])
+                        @can(match ($section) {'bills' => 'billing.view', 'payments' => 'payments.view', default => 'access-consumer'})
                             <flux:sidebar.item :icon="$icon" :href="route('portal.section', $section)" :current="request()->routeIs('portal.section') && request()->route('section') === $section" wire:navigate>{{ __($label) }}</flux:sidebar.item>
                         @endcan
                     @endforeach
@@ -116,13 +116,7 @@
                     <livewire:notification-sheet />
                 @endcan
             @else
-                <flux:modal.trigger name="header-notifications">
-                    <flux:button class="min-h-11 min-w-11" variant="ghost" size="sm" icon="bell" icon:variant="outline" aria-label="{{ __('Notifications') }}" />
-                </flux:modal.trigger>
-                <flux:modal name="header-notifications" flyout position="right" class="w-screen max-w-lg space-y-6" aria-labelledby="notification-sheet-title">
-                    <flux:heading id="notification-sheet-title" size="lg" level="2">{{ __('Notifications') }}</flux:heading>
-                    <flux:text>{{ __('No notifications yet') }}</flux:text>
-                </flux:modal>
+                <x-notification-panel />
             @endif
 
             <flux:dropdown position="bottom" align="end">

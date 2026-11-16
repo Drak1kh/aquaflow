@@ -52,17 +52,17 @@ test('billing management renders the latest rate history as bars on a shared bas
     $billing = file_get_contents(base_path('resources/views/provider/billing.blade.php'));
 
     expect($billing)
-        ->toContain('h-16 items-end gap-2 border-b')
+        ->toContain('relative h-40 border-b border-l')
         ->toContain('rounded-t-sm bg-brand-primary');
 });
 
-test('billing management separates its actions from search and uses custom rate tooltips', function () {
+test('billing management separates its actions from search and labels rate history months', function () {
     $billing = file_get_contents(base_path('resources/views/provider/billing.blade.php'));
 
     expect($billing)
         ->toContain('sm:ms-auto')
-        ->toContain('$rate->effective_from->format(\'F Y\')')
-        ->toContain('<flux:tooltip');
+        ->toContain('$month->format(\'F Y\')')
+        ->toContain('Monthly unit rates');
 });
 
 test('billing sort controls use the shared combined chevron icon', function () {

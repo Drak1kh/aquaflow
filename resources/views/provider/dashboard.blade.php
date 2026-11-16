@@ -60,9 +60,9 @@
 
     <div class="grid gap-6 xl:grid-cols-2">
         @can('billing.view')
-            <x-dashboard-chart :title="__('Billing and collections')" :description="__('Bills by billing month; verified payments by payment date.')" :data="$financialTrend" :series="auth()->user()->can('payments.view') ? ['billed' => __('Billed'), 'collected' => __('Collected')] : ['billed' => __('Billed')]" />
+            <x-dashboard-chart variant="grouped-bars" :title="__('Billing and collections')" :description="__('Bills by billing month; verified payments by payment date.')" :data="$financialTrend" :series="auth()->user()->can('payments.view') ? ['billed' => __('Billed'), 'collected' => __('Collected')] : ['billed' => __('Billed')]" />
         @endcan
-        <x-dashboard-chart :title="__('Water consumption')" :description="__('Total metered usage across your provider’s connections by reading month.')" :data="$consumptionTrend" :series="['consumption' => __('Consumption')]" unit="m3" />
+        <x-dashboard-chart variant="dotted-line" :title="__('Water consumption')" :description="__('Total metered usage across your provider’s connections by reading month.')" :data="$consumptionTrend" :series="['consumption' => __('Consumption')]" unit="m3" />
     </div>
 
     <section class="space-y-4">

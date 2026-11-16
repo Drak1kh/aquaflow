@@ -20,7 +20,7 @@ class PermissionRegistry
         'notifications.view' => 'View client notifications',
         'tickets.view' => 'View support tickets',
         'tickets.create' => 'Submit support tickets',
-        'tickets.respond' => 'Respond and escalate tickets',
+        'tickets.respond' => 'Respond, close, and escalate tickets',
     ];
 
     /** @var array<string, list<string>> */

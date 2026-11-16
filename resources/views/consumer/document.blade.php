@@ -23,6 +23,7 @@
     </div>
 
     @if ($payment)
+        <p class="document-note">{{ __('Legacy receipt: charges and balances reflect current values, not a historical snapshot.') }}</p>
         <section class="document-summary" aria-label="{{ __('Payment received') }}">
             <div><p>{{ __('Payment received — verified') }}</p><strong>₱{{ $payment->amount }}</strong></div>
             <dl class="document-facts">

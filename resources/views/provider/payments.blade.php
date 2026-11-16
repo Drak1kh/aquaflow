@@ -37,13 +37,13 @@
                                 <tr>
                                     <td class="px-4 py-3">{{ $payment->reference }}</td>
                                     <td class="px-4 py-3">{{ $payment->consumer->name }}</td>
-                                    <td class="px-4 py-3">{{ $payment->bill->number }}</td>
-                                    <td class="px-4 py-3"><a href="{{ route('bills.print', $payment->bill) }}" data-document-preview class="aquaflow-plain-link">{{ __('View original bill') }}</a></td>
+                                    <td class="px-4 py-3">@foreach ($payment->coveredBills() as $bill)<div>{{ $bill->number }} · {{ $bill->period_month->format('M Y') }} · ₱{{ $payment->amountForBill($bill) }}</div>@endforeach</td>
+                                    <td class="px-4 py-3">@foreach ($payment->coveredBills() as $bill)<a href="{{ route('bills.print', $bill) }}" data-document-preview class="block aquaflow-plain-link">{{ __('View original bill') }}@if ($payment->coveredBills()->count() > 1) · {{ $bill->number }}@endif</a>@endforeach</td>
                                     <td class="px-4 py-3">@if ($payment->status === 'verified')<a href="{{ route('payments.print', $payment) }}" data-document-preview class="aquaflow-plain-link">{{ __('View payment receipt') }}</a>@else—@endif</td>
-                                    <td class="px-4 py-3">{{ $payment->bill->connection->meter_number }}</td>
+                                    <td class="px-4 py-3">{{ $payment->coveredBills()->pluck('connection.meter_number')->unique()->implode(', ') }}</td>
                                     <td class="px-4 py-3 whitespace-nowrap">{{ $payment->paid_at->format('M d, Y') }}</td>
                                     <td class="px-4 py-3 whitespace-nowrap">{{ $payment->checked_at?->format('M d, Y g:i A') ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-right tabular-nums">₱{{ number_format((float) $payment->amount, 2) }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">₱{{ $selectedBill ? $payment->amountForBill($selectedBill) : $payment->amount }}@if ($selectedBill)<div class="text-xs text-zinc-500 dark:text-zinc-400">{{ $payment->status === 'verified' ? __('Applied to selected bill') : __('Planned for selected bill') }} · {{ __('Payment total') }} ₱{{ $payment->amount }}</div>@endif</td>
                                     <td class="px-4 py-3">@if ($payment->status === 'verified')<flux:badge color="yellow">{{ __('Verified') }}</flux:badge>@elseif ($payment->status === 'rejected')<flux:badge color="red">{{ __('Rejected') }}</flux:badge>@else<flux:badge color="zinc">{{ ucfirst($payment->status) }}</flux:badge>@endif</td>
                                     <td class="px-4 py-3">@if ($payment->proof_path)<a href="{{ route('payments.proof', $payment) }}" data-document-preview="attachment" class="aquaflow-plain-link">{{ __('View attachment') }}</a>@else—@endif</td>
                                     <td class="px-4 py-3">

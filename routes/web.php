@@ -79,6 +79,7 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
         Route::post('tickets', [ConsumerTicketController::class, 'store'])->middleware('can:tickets.create')->name('tickets.store');
         Route::get('tickets/{ticket}', [ConsumerTicketController::class, 'show'])->middleware('can:tickets.view')->name('tickets.show');
         Route::post('tickets/{ticket}/reply', [ConsumerTicketController::class, 'reply'])->middleware('can:tickets.respond')->name('tickets.reply');
+        Route::post('tickets/{ticket}/close', [ConsumerTicketController::class, 'close'])->middleware('can:tickets.respond')->name('tickets.close');
         Route::get('attachments/{message}', [ConsumerTicketController::class, 'attachment'])->middleware('can:tickets.view')->name('tickets.attachment');
     });
 
@@ -86,6 +87,7 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
     Route::put('provider/profile', [MvpController::class, 'providerSettings'])->middleware('can:provider.settings.manage')->name('provider.profile');
     Route::put('provider/consumers/{consumer}', [MvpController::class, 'updateConsumer'])->middleware('can:consumers.manage')->name('provider.consumers.update');
     Route::put('provider/readings/{reading}', [MvpController::class, 'correctReading'])->middleware('can:connections.manage')->name('provider.readings.update');
+    Route::delete('provider/readings/{reading}', [MvpController::class, 'deleteReading'])->middleware('can:connections.manage')->name('provider.readings.destroy');
     Route::get('portal/{section}', [ClientPortalController::class, 'page'])->middleware('can:access-consumer')->name('portal.section');
     Route::post('portal/payments', [MvpController::class, 'submitPayment'])->middleware('can:access-consumer')->name('portal.payments.store');
     Route::get('documents/bills/{bill}', [MvpController::class, 'bill'])->name('bills.print');
@@ -111,6 +113,7 @@ Route::middleware(['auth', 'verified', EnsureProviderContext::class])->group(fun
         Route::get('tickets', [ModuleController::class, 'tickets'])->middleware('can:tickets.view')->name('tickets.index');
         Route::post('tickets/{ticket}/escalate', [OperationsController::class, 'escalate'])->middleware('can:tickets.respond')->name('tickets.escalate');
         Route::post('tickets/{ticket}/reply', [OperationsController::class, 'replyTicket'])->middleware('can:tickets.respond')->name('tickets.reply');
+        Route::post('tickets/{ticket}/close', [OperationsController::class, 'closeTicket'])->middleware('can:tickets.respond')->name('tickets.close');
         Route::get('attachments/{message}', [OperationsController::class, 'attachment'])->middleware('can:tickets.view')->name('tickets.attachment');
         Route::post('consumers', [OperationsController::class, 'consumer'])->middleware('can:consumers.manage')->name('consumers.store');
         Route::delete('consumers/{consumer}', [OperationsController::class, 'deleteConsumer'])->middleware('can:consumers.manage')->name('consumers.destroy');

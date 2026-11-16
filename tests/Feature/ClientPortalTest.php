@@ -10,6 +10,7 @@ use App\Models\RolePermission;
 use App\Models\ServiceEvent;
 use App\Models\SupportTicket;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -134,10 +135,34 @@ test('payment submission is contained in a modal that opens for a selected bill'
     expect($elements->query('//div[contains(@x-data, "initiallyOpen: true")]'))->toHaveCount(1);
 });
 
-test('payment validation reopens the submission modal and preserves entered details', function () {
+test('successful payment submission returns to the payment list with the modal closed', function () {
+    Storage::fake('local');
     $bill = Bill::factory()->create();
     $client = User::factory()->create(['consumer_id' => $bill->consumer_id]);
     $page = route('portal.section', 'payments');
+    $selectedBillPage = route('portal.section', ['section' => 'payments', 'bill' => $bill->id]);
+
+    $this->actingAs($client)->from($selectedBillPage)->post(route('portal.payments.store'), [
+        '_form' => 'submit-payment', 'bill_id' => $bill->id, 'reference' => 'PAY-SUCCESS', 'amount' => '25.00', 'paid_at' => today()->toDateString(),
+        'proof' => UploadedFile::fake()->create('receipt.pdf', 5, 'application/pdf'),
+    ])->assertRedirect($page)->assertSessionHasNoErrors()->assertSessionHas('status', 'Payment submitted for verification.');
+    session()->reflash();
+    session()->save();
+    $response = $this->get($page)->assertOk()->assertSee('Payment submitted for verification.')->assertSee('PAY-SUCCESS');
+
+    $document = new DOMDocument;
+    @$document->loadHTML($response->getContent());
+    $elements = new DOMXPath($document);
+    expect($elements->query('//dialog[@data-modal="submit-payment"]'))->toHaveCount(1);
+    expect($elements->query('//div[contains(@x-data, "initiallyOpen: true")]'))->toHaveCount(0);
+    expect(Payment::sole()->status)->toBe('pending');
+    expect($bill->fresh()->balance())->toBe('150.00');
+});
+
+test('payment validation reopens the submission modal and preserves entered details', function (bool $selectedBill) {
+    $bill = Bill::factory()->create();
+    $client = User::factory()->create(['consumer_id' => $bill->consumer_id]);
+    $page = route('portal.section', ['section' => 'payments', ...($selectedBill ? ['bill' => $bill->id] : [])]);
 
     $this->actingAs($client)->from($page)->post(route('portal.payments.store'), [
         '_form' => 'submit-payment', 'bill_id' => $bill->id, 'reference' => 'PAY-RETRY', 'amount' => '25.00', 'paid_at' => today()->toDateString(),
@@ -152,7 +177,7 @@ test('payment validation reopens the submission modal and preserves entered deta
     $elements = new DOMXPath($document);
     expect($elements->query('//div[contains(@x-data, "initiallyOpen: true")]'))->toHaveCount(1);
     $this->assertDatabaseCount('payments', 0);
-});
+})->with(['payment list' => false, 'selected bill' => true]);
 
 test('payment pages without unpaid bills do not offer a submission modal', function () {
     $connection = Connection::factory()->create();

@@ -115,7 +115,7 @@ test('an escalated ticket can only be assigned to an active super admin', functi
 
     $this->actingAs($admin)->put(route('admin.tickets.update', $ticket), [
         'status' => 'under_review', 'assigned_to' => $inactiveAdmin->id,
-    ])->assertSessionHasErrors('assigned_to');
+    ])->assertSessionHasErrorsIn('edit-ticket-review-'.$ticket->id, ['assigned_to']);
 
     $this->put(route('admin.tickets.update', $ticket), [
         'status' => 'under_review', 'assigned_to' => $admin->id,

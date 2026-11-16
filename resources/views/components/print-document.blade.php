@@ -1,4 +1,4 @@
-@props(['title', 'reference' => null, 'issuer' => null])
+@props(['title', 'reference' => null, 'issuer' => null, 'generatedDate' => null])
 
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -97,7 +97,7 @@
         {{ $slot }}
         <footer class="document-footer">
             <span>{{ __('AquaFlow · Water Management System') }}</span>
-            <span>{{ __('Generated :date', ['date' => now()->format(app(\App\Actions\PlatformSettings::class)->get('date_format').' g:i A')]) }}</span>
+            <span>{{ __('Generated :date', ['date' => $generatedDate ?? now()->format(app(\App\Actions\PlatformSettings::class)->get('date_format').' g:i A')]) }}</span>
         </footer>
     </main>
 </body>

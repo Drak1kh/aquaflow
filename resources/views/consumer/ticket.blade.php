@@ -1,32 +1,22 @@
 <x-layouts::app :title="$ticket->subject">
     <div class="client-page w-full min-w-0 space-y-6">
-        <x-page-header :title="$ticket->subject" :description="ucfirst(str_replace('_', ' ', $ticket->status))" :back-href="route('dashboard.consumer')" :back-label="__('My account')" />
-        <div class="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900"><p class="whitespace-pre-wrap">{{ $ticket->description }}</p></div>
-
-        @foreach ($ticket->messages as $message)
-            <div class="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                <flux:text class="text-sm">{{ $message->created_at->format(app(\App\Actions\PlatformSettings::class)->get('date_format').' g:i A') }}</flux:text>
-                <p class="mt-2 whitespace-pre-wrap">{{ $message->body }}</p>
-                @if ($message->attachment_path)
-                    <flux:link :href="route('portal.tickets.attachment', $message)">{{ $message->attachment_name }}</flux:link>
-                @endif
-            </div>
-        @endforeach
-
-        @if ($ticket->status !== 'closed')
-            @can('permission', 'tickets.respond')
-                <div class="flex justify-end">
-                    <flux:modal.trigger name="reply-to-ticket">
-                        <flux:button variant="primary">{{ __('Reply') }}</flux:button>
-                    </flux:modal.trigger>
-                </div>
-                <x-form-modal name="reply-to-ticket" :title="__('Reply to ticket')" :action="route('portal.tickets.reply', $ticket)" :submit-label="__('Send reply')" :upload="true">
-                    <div class="space-y-4">
-                        <flux:textarea name="body" :label="__('Message')" required>{{ old('_form') === 'reply-to-ticket' ? old('body') : '' }}</flux:textarea>
-                        <flux:input name="attachment" type="file" :label="__('Attachment (PDF or image, up to 5 MB)')" />
+        <x-page-header title="Support Requests & Inquiries" description="Contact your water utility team directly." :back-href="route('portal.section', 'support')" :back-label="__('Your support history')" />
+        <article class="space-y-4 rounded-xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-900">
+            <header class="space-y-2 border-b border-zinc-200 pb-4 dark:border-zinc-700 dark:divide-zinc-700">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-medium tabular-nums text-brand-ocean dark:text-sky-200">#{{ $ticket->id }}</span>
+                        <flux:badge size="sm">{{ ucfirst($ticket->type) }}</flux:badge>
                     </div>
-                </x-form-modal>
-            @endcan
-        @endif
+                    <div class="flex flex-wrap items-center gap-2">
+                        <x-ticket-status :status="$ticket->status" />
+                        <x-ticket-close :ticket="$ticket" />
+                    </div>
+                </div>
+                <flux:heading level="2" size="lg">{{ $ticket->subject }}</flux:heading>
+            </header>
+            <x-ticket-conversation :ticket="$ticket" />
+            <x-ticket-reply :ticket="$ticket" />
+        </article>
     </div>
 </x-layouts::app>
